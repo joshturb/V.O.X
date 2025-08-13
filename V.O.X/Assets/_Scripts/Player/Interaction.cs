@@ -24,10 +24,10 @@ public class Interaction : NetworkBehaviour
 	{
 		if (!IsOwner)
 			return;
-		
+
 		if (!Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition),
-			out raycastHitResults, interactionDistance, interactionLayerMask, QueryTriggerInteraction.Collide)
-			|| raycastHitResults.collider == null)
+				out raycastHitResults, interactionDistance, interactionLayerMask, QueryTriggerInteraction.Collide)
+				|| raycastHitResults.collider == null)
 			{
 				if (currentHoverText != string.Empty)
 				{

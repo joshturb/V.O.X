@@ -4,6 +4,7 @@ using UnityEngine.Rendering;
 using Unity.Netcode;
 using UnityEngine;
 using System;
+using System.Collections;
 
 [Serializable]
 public struct CustomRenderSettings
@@ -32,12 +33,18 @@ public struct CustomRenderSettings
 public abstract class BaseMinigameManager : NetworkBehaviour
 {
 	public static event Action<BaseMinigameManager> OnMinigameInitialized;
+	public static event Action<BaseMinigameManager> OnCountdownCompleted;
+	public static NetworkVariable<float> Timer = new();
+	public BaseMinigameUI MinigameUI;
 	public CustomRenderSettings renderSettings;
 	public List<ulong> PlayersInRound = new();
 	public PlayerModule[] requiredModules;
 	public Transform[] playerPositions;
 	public NetworkObject playerSlotPrefab;
 	public NetworkObject slotParent;
+	public float countdownDuration = 5f;
+	public float minigameDuration = 60f;
+	private float minigameStartTime;
 
 	protected virtual void Awake()
 	{
@@ -89,14 +96,15 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 			}
 		}
 
-		OnMinigameInitializedRpc();
+		OnMinigameInitializedRpc(NetworkManager.Singleton.ServerTime.TimeAsFloat);
 		StartMinigame();
 	}
 
-
 	[Rpc(SendTo.Everyone)]
-	private void OnMinigameInitializedRpc()
+	private void OnMinigameInitializedRpc(float minigameStartTime)
 	{
+		this.minigameStartTime = minigameStartTime;
+		MinigameUI.Initialize(this);
 		OnMinigameInitialized?.Invoke(this);
 	}
 
@@ -119,46 +127,128 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		slotComponent.SetOccupant(clientId);
 	}
 
-	public virtual void StartMinigame() { }
-	
+	public virtual void StartMinigame()
+	{
+		StartCoroutine(MinigameCountdown());
+	}
+
+	private IEnumerator MinigameCountdown()
+	{
+		foreach (var item in PlayersInRound)
+		{
+			FreezePlayer(item);
+		}
+
+		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - minigameStartTime < countdownDuration)
+		{
+			Timer.Value = countdownDuration - (NetworkManager.Singleton.ServerTime.TimeAsFloat - minigameStartTime);
+			yield return null;
+		}
+
+		Timer.Value = 0f;
+		OnCountdownCompleted?.Invoke(this);
+
+		foreach (var item in PlayersInRound)
+		{
+			UnFreezePlayer(item);
+		}
+
+		float startTime = NetworkManager.Singleton.ServerTime.TimeAsFloat;
+		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime < minigameDuration)
+		{
+			Timer.Value = minigameDuration - (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime);
+			yield return null;
+		}
+
+		EndMinigame();
+	}
+
 	public virtual void EndMinigame()
 	{
 		if (!IsServer)
 			return;
 
-		PlayersInRound.Clear();
 		var playerByScore = CalculateScores();
 		GameManager.Instance.EndMinigame(playerByScore);
+		PlayersInRound.Clear();
 	}
 
-	protected ModuleLocker GetModuleLocker(ulong id)
+	protected bool TryGetModuleLocker(ulong id, out ModuleLocker moduleLocker)
 	{
+		moduleLocker = null;
+
 		if (!IsServer)
 		{
 			Debug.Log("GetModuleLocker: Not the server.");
-			return null;
+			return false;
 		}
 
 		if (!PlayersInRound.Contains(id))
 		{
 			Debug.Log("GetModuleLocker: Player id " + id + " not in PlayersInRound.");
-			return null;
+			return false;
 		}
 
 		if (!Referencer.TryGetReferencer(id, out var referencer))
 		{
 			Debug.Log("GetModuleLocker: No referencer found for player id " + id);
-			return null;
+			return false;
 		}
 
-		if (!referencer.TryGetCachedComponent<ModuleLocker>(out var moduleLocker))
+		if (!referencer.TryGetCachedComponent<ModuleLocker>(out moduleLocker))
 		{
 			Debug.Log("GetModuleLocker: ModuleLocker component not found in referencer for player id " + id);
-			return null;
+			return false;
 		}
 
 		Debug.Log("GetModuleLocker: Found ModuleLocker for player id " + id);
-		return moduleLocker;
+		return true;
+	}
+
+	protected void FreezePlayer(ulong clientId, bool freezeCamera = false)
+	{
+		if (!IsServer)
+		{
+			Debug.Log("FreezePlayer: Not the server.");
+			return;
+		}
+
+		if (!PlayersInRound.Contains(clientId))
+		{
+			Debug.Log($"FreezePlayer: ClientId {clientId} not in PlayersInRound.");
+			return;
+		}
+
+		if (!TryGetModuleLocker(clientId, out var moduleLocker))
+		{
+			Debug.Log($"FreezePlayer: No ModuleLocker found for ClientId {clientId}.");
+			return;
+		}
+
+		moduleLocker.LockAllModulesRpc(freezeCamera);
+	}
+
+	protected void UnFreezePlayer(ulong clientId)
+	{
+		if (!IsServer)
+		{
+			Debug.Log("UnFreezePlayer: Not the server.");
+			return;
+		}
+
+		if (!PlayersInRound.Contains(clientId))
+		{
+			Debug.Log($"UnFreezePlayer: ClientId {clientId} not in PlayersInRound.");
+			return;
+		}
+
+		if (!TryGetModuleLocker(clientId, out var moduleLocker))
+		{
+			Debug.Log($"UnFreezePlayer: No ModuleLocker found for ClientId {clientId}.");
+			return;
+		}
+
+		moduleLocker.UnlockAllModulesRpc();
 	}
 
 	protected void TeleportPlayer(ulong clientId, Vector3 position, Quaternion rotation)

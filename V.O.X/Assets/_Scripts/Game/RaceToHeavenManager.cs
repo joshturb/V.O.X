@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -19,6 +20,8 @@ public class RaceToHeavenManager : BaseMinigameManager
 				Debug.Log($"Player {id} finished the race!");
 			}
 		};
+
+		StartCoroutine(nameof(MinigameCoroutine));
 	}
 
 	public override void OnDestroy()
@@ -36,6 +39,11 @@ public class RaceToHeavenManager : BaseMinigameManager
 				Debug.Log($"Player {id} finished the race!");
 			}
 		};
+	}
+
+	private IEnumerator MinigameCoroutine()
+	{
+		yield return null;
 	}
 
 	private void SetPlayerFinished(ulong id)

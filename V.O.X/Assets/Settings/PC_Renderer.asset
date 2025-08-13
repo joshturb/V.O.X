@@ -135,6 +135,6 @@ MonoBehaviour:
   m_Active: 1
   settings:
     renderPassEvent: 450
-    outlineThickness: 3
+    outlineThickness: 2
     outlineColor: {r: 0, g: 0, b: 0, a: 1}
   edgeDetectionMaterial: {fileID: 2100000, guid: 610f16b1e5bfbc94395596996d4b61cf, type: 2}

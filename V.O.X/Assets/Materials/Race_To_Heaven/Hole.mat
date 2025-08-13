@@ -54,16 +54,16 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _FadeDuration: 5
-    - _Metallic: 0
-    - _NormalStrength: 0.091
+    - _FadeDuration: 6.91
+    - _Metallic: 0.5
+    - _NormalStrength: 0.112
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Smoothness: 0
-    - _StartHeight: 26.3
+    - _Smoothness: 0.15
+    - _StartHeight: 35
     - _Tiling: 0.1
     m_Colors:
-    - _ColorA: {r: 0.4339623, g: 0.21293901, b: 0, a: 1}
+    - _ColorA: {r: 0.3773585, g: 0.24105969, b: 0.105019584, a: 1}
     - _ColorB: {r: 0.2735849, g: 0, b: 0, a: 0}
     - _Emission: {r: 0, g: 0, b: 0, a: 0}
   m_BuildTextureStacks: []

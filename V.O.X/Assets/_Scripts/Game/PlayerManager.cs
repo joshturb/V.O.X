@@ -20,6 +20,7 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 			if (gateType == Gate.GateType.Death)
 			{
 				SetLives(id, 0);
+				print("Player " + id + " has died.");
 			}
 		};
 

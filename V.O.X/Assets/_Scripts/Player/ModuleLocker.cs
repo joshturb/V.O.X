@@ -36,13 +36,15 @@ public class ModuleLocker : MonoBehaviour
 	}
 
 	[Rpc(SendTo.Owner)]
-	public void LockAllModulesRpc()
+	public void LockAllModulesRpc(bool includeCamera = false)
 	{
 		foreach (var module in fpcModule.modules)
 		{
-			module.IsLocked = true;
+			if (includeCamera || module is not CameraModule)
+				module.IsLocked = true;
 		}
 	}
+
 
 	[Rpc(SendTo.Owner)]
 	public void UnlockAllModulesRpc()

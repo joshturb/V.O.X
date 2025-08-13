@@ -19,7 +19,10 @@ public class Gate : NetworkBehaviour
 			return;
 
 		if (!collider.CompareTag("Player"))
+		{
+			Debug.LogWarning("Non-player object entered gate.");
 			return;
+		}
 
 		if (!collider.TryGetComponent(out NetworkObject networkObject))
 		{
@@ -27,7 +30,6 @@ public class Gate : NetworkBehaviour
 			return;
 		}
 
-		Debug.Log($"Player {networkObject.OwnerClientId} entered {gateType} gate.");
 		OnPlayerEnteredGate?.Invoke(networkObject.OwnerClientId, gateType);
 	}
 }
