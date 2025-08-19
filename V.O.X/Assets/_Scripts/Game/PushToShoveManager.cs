@@ -4,6 +4,6 @@ public class PushToShoveManager : BaseMinigameManager
 {
 	public override List<ulong> CalculateScores()
 	{
-		throw new System.NotImplementedException();
+		return new List<ulong>(GameManager.PlayerScores.Keys);
 	}
 }

@@ -32,8 +32,6 @@ public class PlayerStatsUI : NetworkBehaviour
 		}
 
 		playerStats.IsTalking.OnValueChanged += OnIsTalkingChanged;
-		PlayerManager.OnPlayerDeath_E += (id) => UpdateHealthUI(id, true);
-		PlayerManager.OnPlayerRevive_E += (id) => UpdateHealthUI(id, false);
 	}
 
 	public override void OnNetworkDespawn()
@@ -47,26 +45,10 @@ public class PlayerStatsUI : NetworkBehaviour
 		}
 
 		playerStats.IsTalking.OnValueChanged -= OnIsTalkingChanged;
-		PlayerManager.OnPlayerDeath_E -= (id) => UpdateHealthUI(id, true);
-		PlayerManager.OnPlayerRevive_E -= (id) => UpdateHealthUI(id, false);
 	}
 
 	private void OnIsTalkingChanged(bool previousValue, bool newValue)
 	{
 		isTalkingImage.enabled = newValue;
-	}
-
-	private void UpdateHealthUI(ulong id, bool alive)
-	{
-		if (id != OwnerClientId)
-			return;
-
-		UpdateLivesUIRpc(alive);
-	}
-
-	[Rpc(SendTo.Everyone)]
-	private void UpdateLivesUIRpc(bool alive)
-	{
-		healthImage.sprite = alive ? GlobalUIManager.Instance.aliveImage : GlobalUIManager.Instance.deadImage;
 	}
 }

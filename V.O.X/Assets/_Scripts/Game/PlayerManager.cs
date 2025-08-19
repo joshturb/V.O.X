@@ -27,7 +27,6 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 		if (!IsServer)
 			return;
 
-		GameManager.OnMinigameLoaded_S += RevivePlayersForMinigame_S;
 		Gate.OnPlayerEnteredGate_S += async (id, gateType) =>
 		{
 			if (gateType == Gate.GateType.Death)
@@ -35,6 +34,8 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 				await KillPlayer(id);
 			}
 		};
+
+		GameManager.IsGameRunning.OnValueChanged += SetupAlivePlayers;
 	}
 
 	public override void OnDestroy()
@@ -55,7 +56,6 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 		if (!IsServer)
 			return;
 
-		GameManager.OnMinigameLoaded_S -= RevivePlayersForMinigame_S;
 		Gate.OnPlayerEnteredGate_S -= async (id, gateType) =>
 		{
 			if (gateType == Gate.GateType.Death)
@@ -64,16 +64,22 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 			}
 
 		};
+
+		GameManager.IsGameRunning.OnValueChanged -= SetupAlivePlayers;
 	}
 
-	private void RevivePlayersForMinigame_S(MiniGame game, List<ulong> list)
+	private void SetupAlivePlayers(bool previousValue, bool newValue)
 	{
-		if (game is not MiniGame.Blank)
-			return;
-
-		foreach (var playerId in list)
+		if (newValue)
 		{
-			RevivePlayer(playerId);
+			foreach (var item in GameManager.PlayerDatas)
+			{
+				AlivePlayers.Add(item.clientId);
+			}
+		}
+		else
+		{
+			AlivePlayers.Clear();
 		}
 	}
 
@@ -113,7 +119,12 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 			return;
 		}
 
+		BaseMinigameManager currentMinigameManager = GameManager.Instance.currentMinigameManager;
+		int index = UnityEngine.Random.Range(0, currentMinigameManager.playerPositions.Length);
+
 		AlivePlayers.Add(id);
+		currentMinigameManager.playerPositions[index].GetPositionAndRotation(out Vector3 spawnPosition, out Quaternion spawnRotation);
+		PlayerSpawner.Instance.SpawnPlayer(id, spawnPosition, spawnRotation);
 		print("Player " + id + " has been revived.");
 	}
 

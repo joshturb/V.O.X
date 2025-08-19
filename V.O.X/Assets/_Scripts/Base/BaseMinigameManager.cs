@@ -77,7 +77,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		if (!IsServer)
 			return;
 			
-		StopCoroutine(MinigameCountdown());
+		StopCoroutine(MinigameCoroutine());
 	}
 
 	public virtual void OnMinigameLoaded_S(MiniGame game, List<ulong> list)
@@ -139,7 +139,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 
 	public virtual void StartMinigame()
 	{
-		StartCoroutine(MinigameCountdown());
+		StartCoroutine(MinigameCoroutine());
 	}
 
 	public virtual void EndMinigame()
@@ -152,7 +152,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		PlayersInRound.Clear();
 	}
 
-	private IEnumerator MinigameCountdown()
+	private IEnumerator MinigameCoroutine()
 	{
 		foreach (var item in PlayersInRound)
 		{
@@ -174,10 +174,15 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		}
 
 		float startTime = NetworkManager.Singleton.ServerTime.TimeAsFloat;
-		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime < minigameDuration)
+		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime < minigameDuration && PlayerManager.GetAlivePlayerCount() > 1)
 		{
 			Timer.Value = minigameDuration - (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime);
 			yield return null;
+		}
+
+		if (PlayerManager.GetAlivePlayerCount() == 1)
+		{
+			yield return new WaitForSeconds(5f);
 		}
 
 		EndMinigame();

@@ -99,7 +99,7 @@ public class Spectating : NetworkSingleton<Spectating>
 		for (int i = 0; i < aliveNetworkObjects.Length; i++)
 		{
 			var id = PlayerManager.Instance.AlivePlayers[i];
-			if (GameManager.GetPlayerData(id, out var playerData))
+			if (GameManager.GetPlayerData(id, out var playerData)) 
 			{
 				if (playerData.networkReference.TryGet(out NetworkObject networkObject))
 				{

@@ -10,7 +10,7 @@ using System;
 
 public enum MiniGame
 {
-	Blank,
+	None,
 	Telephone,
 	RaceToHeaven,
 	PushToShove,
@@ -49,7 +49,7 @@ public class GameManager : NetworkSingleton<GameManager>
 {
 	public static NetworkList<PlayerData> PlayerDatas;
 	public static Dictionary<ulong, int> PlayerScores = new();
-
+	public static NetworkVariable<bool> IsGameRunning = new();
 	public static event Action<ulong, int> OnScoreUpdated_S;
 	public static event Action<MiniGame, List<ulong>> OnMinigameLoaded_S;
 	public static event Action<MiniGame> OnMinigameUnloaded_S;
@@ -80,7 +80,7 @@ public class GameManager : NetworkSingleton<GameManager>
 		if (!IsServer)
 			return;
 
-		startCoroutine = StartCoroutine(MinigameCoroutine(MiniGame.Blank));
+		startCoroutine = StartCoroutine(Transition(MiniGame.Blank));
 
 		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoaded;
 		NetworkManager.Singleton.SceneManager.OnUnloadComplete += OnSceneUnloaded;
@@ -130,13 +130,14 @@ public class GameManager : NetworkSingleton<GameManager>
 
 	private void OnSceneUnloaded(ulong clientId, string sceneName)
 	{
-		MiniGame nextMinigame = GetRandomMinigame();
+		MiniGame nextMinigame = PlayerManager.GetAlivePlayerCount() > 1 ? GetRandomMinigame() : MiniGame.Blank;
+
 		if (startCoroutine != null)
 		{
 			StopCoroutine(startCoroutine);
 		}
-
-		startCoroutine = StartCoroutine(MinigameCoroutine(nextMinigame));
+		print(nextMinigame);
+		startCoroutine = StartCoroutine(Transition(nextMinigame));
 	}
 
 	private void OnSceneLoaded(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
@@ -153,7 +154,7 @@ public class GameManager : NetworkSingleton<GameManager>
 		print($"Current Minigame Manager: {currentMinigameManager?.GetType().Name ?? "None"}");
 	}
 
-	private IEnumerator MinigameCoroutine(MiniGame miniGame)
+	private IEnumerator Transition(MiniGame miniGame)
 	{
 		if (CurrentMinigame.Value != MiniGame.Blank)
 		{
@@ -222,14 +223,24 @@ public class GameManager : NetworkSingleton<GameManager>
 	}
 
 	[Rpc(SendTo.Server)]
-	public void AddPlayerDataRpc(PlayerData playerData)
+	public void SetPlayerDataRpc(PlayerData playerData)
 	{
-		PlayerDatas.Add(playerData);
+		if (PlayerDatas.Contains(playerData))
+		{
+			PlayerDatas[PlayerDatas.IndexOf(playerData)] = playerData;
+			return;
+		}
+		else
+		{
+			PlayerDatas.Add(playerData);
+		}
 	}
 
-	[Rpc(SendTo.Server)]
-	public void RemovePlayerDataRpc(ulong clientId)
+	public void RemovePlayerData(ulong clientId)
 	{
+		if (!IsServer)
+			return;
+
 		if (GetPlayerData(clientId, out var data))
 		{
 			PlayerDatas.Remove(data);

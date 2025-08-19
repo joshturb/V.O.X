@@ -15,6 +15,9 @@ public class Spectator : NetworkBehaviour
 
 	void Start()
 	{
+		if (!IsOwner)
+			return;
+
 		NextPlayerRpc();
 		spectatingCamera.Priority = -1;
 	}

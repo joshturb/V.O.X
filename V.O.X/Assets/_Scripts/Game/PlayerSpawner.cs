@@ -17,10 +17,12 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		NetworkManager.Singleton.ConnectionApprovalCallback = ApprovalCheck;
 		NetworkManager.Singleton.OnClientConnectedCallback += (clientId) =>
 		{
-			SpawnPlayer(clientId);
+			int index = UnityEngine.Random.Range(0, spawnPoints.Length);
+			SpawnPlayer(clientId, spawnPoints[index].position, spawnPoints[index].rotation);
 		};
 
-		SpawnPlayer(NetworkManager.ServerClientId);
+		int index = UnityEngine.Random.Range(0, spawnPoints.Length);
+		SpawnPlayer(NetworkManager.ServerClientId, spawnPoints[index].position, spawnPoints[index].rotation);
 	}
 
 	public override void OnDestroy()
@@ -32,7 +34,8 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		NetworkManager.Singleton.ConnectionApprovalCallback -= ApprovalCheck;
 		NetworkManager.Singleton.OnClientConnectedCallback -= (clientId) =>
 		{
-			SpawnPlayer(clientId);
+			int index = UnityEngine.Random.Range(0, spawnPoints.Length);
+			SpawnPlayer(clientId, spawnPoints[index].position, spawnPoints[index].rotation);
 		};
 	}
 
@@ -49,10 +52,12 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		response.CreatePlayerObject = false;
 	}
 
-	private void SpawnPlayer(ulong clientId)
+	public void SpawnPlayer(ulong clientId, Vector3 position, Quaternion rotation)
 	{
-		int index = UnityEngine.Random.Range(0, spawnPoints.Length);
-		NetworkObject playerObject = Instantiate(playerObj, spawnPoints[index].position, spawnPoints[index].rotation);
+		if (!IsServer)
+			return;
+
+		NetworkObject playerObject = Instantiate(playerObj, position, rotation);
 		playerObject.name = $"Player_{clientId}";
 		playerObject.SpawnAsPlayerObject(clientId);
 
@@ -64,7 +69,7 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 			}
 		});
 
-		Debug.Log($"Spawned player: {playerObject.name} at {spawnPoints[index].position}");
+		Debug.Log($"Spawned player: {playerObject.name} at {position}");
 	}
 
 	[Rpc(SendTo.SpecifiedInParams)]
@@ -78,6 +83,6 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 			networkReference = playerReference
 		};
 
-		GameManager.Instance.AddPlayerDataRpc(playerData);
+		GameManager.Instance.SetPlayerDataRpc(playerData);
 	}
 }

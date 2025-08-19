@@ -7,18 +7,13 @@ using TMPro;
 public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 {
 	[SerializeField] private Image glitchImage;
-	[SerializeField] private Image healthImage;
 	[SerializeField] private TMP_Text timerText;
-	public Sprite aliveImage;
-	public Sprite deadImage;
 
 	protected override void Awake()
 	{
 		base.Awake();
 		NetworkManager.Singleton.SceneManager.OnUnload += OnSceneUnload;
 		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoadComplete;
-		PlayerManager.OnPlayerDeath_E += (id) => UpdateHealthUI(id, true);
-		PlayerManager.OnPlayerRevive_E += (id) => UpdateHealthUI(id, false);
 		BaseMinigameManager.Timer.OnValueChanged += UpdateTimerUI;
 	}
 
@@ -30,8 +25,6 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 
 		NetworkManager.Singleton.SceneManager.OnUnload -= OnSceneUnload;
 		NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoadComplete;
-		PlayerManager.OnPlayerDeath_E -= (id) => UpdateHealthUI(id, true);
-		PlayerManager.OnPlayerRevive_E -= (id) => UpdateHealthUI(id, false);
 		BaseMinigameManager.Timer.OnValueChanged -= UpdateTimerUI;
 	}
 
@@ -41,14 +34,6 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 			return;		
 
 		timerText.text = newValue.ToString("F0");
-	}
-
-	private void UpdateHealthUI(ulong id, bool dead)
-	{
-		if (id == NetworkManager.LocalClientId)
-		{
-			healthImage.sprite = dead ? deadImage : aliveImage;
-		}
 	}
 
 	private void OnSceneLoadComplete(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
