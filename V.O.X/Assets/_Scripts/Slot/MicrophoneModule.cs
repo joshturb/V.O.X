@@ -1,17 +1,26 @@
 using Dissonance.Datastructures;
 using Dissonance.Audio.Capture;
 using Unity.Netcode;
+using UnityEngine;
 using NAudio.Wave;
 using Dissonance;
 using System;
-using UnityEngine;
+
+[Serializable]
+public struct VoiceMetrics
+{
+	public float LoudnessDb { get; set; }
+	public float Pitch { get; set; }
+	public float AveragePitch { get; set; }
+	public float Confidence { get; set; }
+}
 
 public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 {
 	public event Action<ulong, ArraySegment<float>> OnAudioDataReceived_E;
 	public event Action<ulong, WaveFormat> OnAudioStreamReset_E;
 	public event Action<ulong> OnRecordingRequested_S;
-	public event Action<ulong, float, float, float, float> OnVoiceMetricsUpdated_E; // (clientId, pitch, avgPitch, dB, confidence)
+	public event Action<ulong, VoiceMetrics> OnVoiceMetricsUpdated_E;
 
 	private WaveFormat _format;
 	private readonly TransferBuffer<float> _transfer = new(capacity: 4096);
@@ -67,8 +76,6 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 		// Perform pitch & loudness analysis before forwarding raw audio
 		if (_format != null && arraySegment.Count > 0)
 		{
-			float localConfidence;
-			float localDb;
 			float pitch = VoiceUtils.CalculatePitchYin(
 				arraySegment,
 				_format.SampleRate,
@@ -76,8 +83,8 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 				maxPitchHz,
 				yinThreshold,
 				minDbFs,
-				out localConfidence,
-				out localDb);
+				out float localConfidence,
+				out float localDb);
 
 			// Loudness gating for smoothing weight
 			float loudnessWeight = Mathf.Clamp01((localDb - (-80f)) / (0f - (-80f)));
@@ -91,7 +98,13 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 			averagePitch = Mathf.Lerp(averagePitch, currentPitch, averagePitchSmoothing);
 			confidence = localConfidence;
 			loudnessDb = localDb;
-			OnVoiceMetricsUpdated_E?.Invoke(_occupantId, currentPitch, averagePitch, loudnessDb, confidence);
+			OnVoiceMetricsUpdated_E?.Invoke(_occupantId, new VoiceMetrics
+			{
+				Pitch = currentPitch,
+				AveragePitch = averagePitch,
+				LoudnessDb = loudnessDb,
+				Confidence = confidence
+			});
 		}
 
 		OnAudioDataReceived_E?.Invoke(_occupantId, arraySegment);
@@ -132,7 +145,7 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 	{
 		if (!OwnsComponent(_occupantId))
 			return;
-		
+
 		_transfer.Clear();
 		_resetPending = true;
 	}
@@ -141,7 +154,7 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 	{
 		if (!OwnsComponent(_occupantId))
 			return;
-		
+
 		if (_resetPending)
 		{
 			if (_format == null)

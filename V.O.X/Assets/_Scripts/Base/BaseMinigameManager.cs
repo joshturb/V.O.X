@@ -35,6 +35,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 	public static event Action<BaseMinigameManager> OnMinigameInitialized;
 	public static event Action<BaseMinigameManager> OnCountdownCompleted;
 	public static NetworkVariable<float> Timer = new();
+	public MiniGame Type;
 	public BaseMinigameUI MinigameUI;
 	public CustomRenderSettings renderSettings;
 	public List<ulong> PlayersInRound = new();
@@ -70,7 +71,16 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		#endregion
 	}
 
-	public virtual void OnMinigameLoaded(MiniGame game, List<ulong> list)
+	public override void OnDestroy()
+	{
+		base.OnDestroy();
+		if (!IsServer)
+			return;
+			
+		StopCoroutine(MinigameCountdown());
+	}
+
+	public virtual void OnMinigameLoaded_S(MiniGame game, List<ulong> list)
 	{
 		if (game is MiniGame.Blank)
 			return;
@@ -132,6 +142,16 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		StartCoroutine(MinigameCountdown());
 	}
 
+	public virtual void EndMinigame()
+	{
+		if (!IsServer)
+			return;
+
+		var playerByScore = CalculateScores();
+		GameManager.Instance.EndMinigame(playerByScore);
+		PlayersInRound.Clear();
+	}
+
 	private IEnumerator MinigameCountdown()
 	{
 		foreach (var item in PlayersInRound)
@@ -146,7 +166,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		}
 
 		Timer.Value = 0f;
-		OnCountdownCompleted?.Invoke(this);
+		OnCountdownCompleteRpc();
 
 		foreach (var item in PlayersInRound)
 		{
@@ -161,16 +181,6 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		}
 
 		EndMinigame();
-	}
-
-	public virtual void EndMinigame()
-	{
-		if (!IsServer)
-			return;
-
-		var playerByScore = CalculateScores();
-		GameManager.Instance.EndMinigame(playerByScore);
-		PlayersInRound.Clear();
 	}
 
 	protected bool TryGetModuleLocker(ulong id, out ModuleLocker moduleLocker)
@@ -195,7 +205,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 			return false;
 		}
 
-		if (!referencer.TryGetCachedComponent<ModuleLocker>(out moduleLocker))
+		if (!referencer.TryGetCachedComponent(out moduleLocker))
 		{
 			Debug.Log("GetModuleLocker: ModuleLocker component not found in referencer for player id " + id);
 			return false;
@@ -297,6 +307,12 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 
 			controller.enabled = true;
 		}
+	}
+
+	[Rpc(SendTo.Everyone)]
+	private void OnCountdownCompleteRpc()
+	{
+		OnCountdownCompleted?.Invoke(this);
 	}
 
 	public abstract List<ulong> CalculateScores();

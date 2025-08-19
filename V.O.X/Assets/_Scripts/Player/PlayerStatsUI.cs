@@ -2,7 +2,6 @@ using Unity.Netcode;
 using UnityEngine.UI;
 using UnityEngine;
 using TMPro;
-using System;
 
 public class PlayerStatsUI : NetworkBehaviour
 {
@@ -16,13 +15,13 @@ public class PlayerStatsUI : NetworkBehaviour
 		if (!IsOwner)
 			return;
 
-		foreach (var item in PlayerStats.PlayerNamesById)
+		foreach (var item in GameManager.PlayerDatas)
 		{
-			if (Referencer.TryGetReferencer(item.Key, out referencer))
+			if (Referencer.TryGetReferencer(item.clientId, out referencer))
 			{
 				if (referencer.TryGetCachedComponent<PlayerStatsUI>(out var playerStatsUI))
 				{
-					playerStatsUI.playerNameText.text = item.Value.ToString();
+					playerStatsUI.playerNameText.text = item.playerName.ToString();
 				}
 			}
 		}
@@ -33,7 +32,8 @@ public class PlayerStatsUI : NetworkBehaviour
 		}
 
 		playerStats.IsTalking.OnValueChanged += OnIsTalkingChanged;
-		PlayerManager.OnPlayerLivesChanged += UpdateLivesUI;
+		PlayerManager.OnPlayerDeath_E += (id) => UpdateHealthUI(id, true);
+		PlayerManager.OnPlayerRevive_E += (id) => UpdateHealthUI(id, false);
 	}
 
 	public override void OnNetworkDespawn()
@@ -47,7 +47,8 @@ public class PlayerStatsUI : NetworkBehaviour
 		}
 
 		playerStats.IsTalking.OnValueChanged -= OnIsTalkingChanged;
-		PlayerManager.OnPlayerLivesChanged -= UpdateLivesUI;
+		PlayerManager.OnPlayerDeath_E -= (id) => UpdateHealthUI(id, true);
+		PlayerManager.OnPlayerRevive_E -= (id) => UpdateHealthUI(id, false);
 	}
 
 	private void OnIsTalkingChanged(bool previousValue, bool newValue)
@@ -55,17 +56,17 @@ public class PlayerStatsUI : NetworkBehaviour
 		isTalkingImage.enabled = newValue;
 	}
 
-	private void UpdateLivesUI(ulong id, int lives)
+	private void UpdateHealthUI(ulong id, bool alive)
 	{
 		if (id != OwnerClientId)
 			return;
 
-		UpdateLivesUIRpc(lives);
+		UpdateLivesUIRpc(alive);
 	}
 
 	[Rpc(SendTo.Everyone)]
-	private void UpdateLivesUIRpc(int lives)
+	private void UpdateLivesUIRpc(bool alive)
 	{
-		healthImage.sprite = GlobalUIManager.Instance.healthImages[Mathf.Clamp(lives, 0, GlobalUIManager.Instance.healthImages.Length - 1)];
+		healthImage.sprite = alive ? GlobalUIManager.Instance.aliveImage : GlobalUIManager.Instance.deadImage;
 	}
 }

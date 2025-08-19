@@ -50,10 +50,9 @@ public class GameManager : NetworkSingleton<GameManager>
 	public static NetworkList<PlayerData> PlayerDatas;
 	public static Dictionary<ulong, int> PlayerScores = new();
 
-	public static event Action<ulong, int> OnScoreUpdated;
-	public static event Action<ulong, int> OnPlayerLivesChanged;
-	public static event Action<MiniGame, List<ulong>> OnMinigameLoaded;
-	public static event Action<MiniGame> OnMinigameUnloaded;
+	public static event Action<ulong, int> OnScoreUpdated_S;
+	public static event Action<MiniGame, List<ulong>> OnMinigameLoaded_S;
+	public static event Action<MiniGame> OnMinigameUnloaded_S;
 	public static bool CanPlayersJoin = true;
 
 	[Header("Scene Configuration")]
@@ -115,7 +114,7 @@ public class GameManager : NetworkSingleton<GameManager>
 					? pointsPerScore.x
 					: Mathf.RoundToInt(Mathf.Lerp(pointsPerScore.x, pointsPerScore.y, index / (float)(totalPlayers - 1)));
 
-				if (PlayerManager.GetPlayerLives(playerId) > 0)
+				if (PlayerManager.IsPlayerAlive(playerId))
 				{
 					score += pointsPerRound;
 				}
@@ -124,7 +123,7 @@ public class GameManager : NetworkSingleton<GameManager>
 			}
 		}
 
-		OnMinigameUnloaded?.Invoke(CurrentMinigame.Value);
+		OnMinigameUnloaded_S?.Invoke(CurrentMinigame.Value);
 		Scene sceneToUnload = SceneManager.GetSceneByName(minigameScenes[CurrentMinigame.Value]);
 		NetworkManager.Singleton.SceneManager.UnloadScene(sceneToUnload);
 	}
@@ -132,7 +131,6 @@ public class GameManager : NetworkSingleton<GameManager>
 	private void OnSceneUnloaded(ulong clientId, string sceneName)
 	{
 		MiniGame nextMinigame = GetRandomMinigame();
-
 		if (startCoroutine != null)
 		{
 			StopCoroutine(startCoroutine);
@@ -144,12 +142,12 @@ public class GameManager : NetworkSingleton<GameManager>
 	private void OnSceneLoaded(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
 	{
 		List<ulong> connectedClients = NetworkManager.Singleton.ConnectedClientsIds.ToList();
-		OnMinigameLoaded?.Invoke(CurrentMinigame.Value, connectedClients);
+		OnMinigameLoaded_S?.Invoke(CurrentMinigame.Value, connectedClients);
+		FindCurrentMinigameRpc();
 
-		currentMinigameManager = FindFirstObjectByType<BaseMinigameManager>();
 		if (currentMinigameManager != null)
 		{
-			currentMinigameManager.OnMinigameLoaded(CurrentMinigame.Value, connectedClients);
+			currentMinigameManager.OnMinigameLoaded_S(CurrentMinigame.Value, connectedClients);
 		}
 
 		print($"Current Minigame Manager: {currentMinigameManager?.GetType().Name ?? "None"}");
@@ -201,14 +199,14 @@ public class GameManager : NetworkSingleton<GameManager>
 		}
 
 		PlayerScores[clientId] += points;
-		OnScoreUpdated?.Invoke(clientId, PlayerScores[clientId]);
+		OnScoreUpdated_S?.Invoke(clientId, PlayerScores[clientId]);
 	}
 
 	public int GetScore(ulong clientId)
 	{
 		return PlayerScores.TryGetValue(clientId, out var score) ? score : 0;
 	}
-	
+
 	public static bool GetPlayerData(ulong clientId, out PlayerData playerData)
 	{
 		foreach (var data in PlayerDatas)
@@ -221,5 +219,26 @@ public class GameManager : NetworkSingleton<GameManager>
 		}
 		playerData = default;
 		return false;
+	}
+
+	[Rpc(SendTo.Server)]
+	public void AddPlayerDataRpc(PlayerData playerData)
+	{
+		PlayerDatas.Add(playerData);
+	}
+
+	[Rpc(SendTo.Server)]
+	public void RemovePlayerDataRpc(ulong clientId)
+	{
+		if (GetPlayerData(clientId, out var data))
+		{
+			PlayerDatas.Remove(data);
+		}
+	}
+
+	[Rpc(SendTo.Everyone)]
+	private void FindCurrentMinigameRpc()
+	{
+		currentMinigameManager = FindFirstObjectByType<BaseMinigameManager>();
 	}
 }

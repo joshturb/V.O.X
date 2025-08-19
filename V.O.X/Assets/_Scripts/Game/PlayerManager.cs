@@ -1,81 +1,149 @@
-using AYellowpaper.SerializedCollections;
+using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using System;
 
 public class PlayerManager : NetworkSingleton<PlayerManager>
 {
-	[SerializeField] private SerializedDictionary<ulong, int> _healthById = new();
-	public static event System.Action<ulong, int> OnPlayerLivesChanged;
+	public NetworkList<ulong> AlivePlayers = new();
+	public static event Action<ulong> OnPlayerDeath_E;
+	public static event Action<ulong> OnPlayerRevive_E;
 
 	void Start()
 	{
-		_healthById[NetworkManager.LocalClientId] = 3;
-		OnPlayerLivesChanged?.Invoke(NetworkManager.LocalClientId, 3);
+		AlivePlayers.OnListChanged += (changeEvent) =>
+		{
+			if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Add)
+			{
+				OnPlayerRevive_E?.Invoke(changeEvent.Value);
+			}
+			else if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Remove)
+			{
+				OnPlayerDeath_E?.Invoke(changeEvent.Value);
+				print("OnPlayerDeath_E invoked");
+			}
+		};
 
 		if (!IsServer)
 			return;
 
-		Gate.OnPlayerEnteredGate += (id, gateType) =>
+		GameManager.OnMinigameLoaded_S += RevivePlayersForMinigame_S;
+		Gate.OnPlayerEnteredGate_S += async (id, gateType) =>
 		{
 			if (gateType == Gate.GateType.Death)
 			{
-				SetLives(id, 0);
-				print("Player " + id + " has died.");
+				await KillPlayer(id);
 			}
 		};
-
-		NetworkManager.Singleton.OnClientConnectedCallback += (id) => { SetLives(id, 3); };
-		NetworkManager.Singleton.OnClientDisconnectCallback += (id) => { _healthById.Remove(id); };
 	}
 
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
+		AlivePlayers.OnListChanged -= (changeEvent) =>
+		{
+			if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Add)
+			{
+				OnPlayerRevive_E?.Invoke(changeEvent.Value);
+			}
+			else if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Remove)
+			{
+				OnPlayerDeath_E?.Invoke(changeEvent.Value);
+			}
+		};
+
 		if (!IsServer)
 			return;
 
-		Gate.OnPlayerEnteredGate -= (id, gateType) =>
+		GameManager.OnMinigameLoaded_S -= RevivePlayersForMinigame_S;
+		Gate.OnPlayerEnteredGate_S -= async (id, gateType) =>
 		{
 			if (gateType == Gate.GateType.Death)
 			{
-				SetLives(id, 0);
+				await KillPlayer(id);
 			}
-			
+
 		};
-
-		NetworkManager.Singleton.OnClientConnectedCallback -= (id) => { SetLives(id, 3); };
-		NetworkManager.Singleton.OnClientDisconnectCallback -= (id) => { _healthById.Remove(id); };
 	}
 
-	private static int GetPlayersCountAlive()
+	private void RevivePlayersForMinigame_S(MiniGame game, List<ulong> list)
 	{
-		int count = 0;
-		foreach (var lives in Instance._healthById.Values)
+		if (game is not MiniGame.Blank)
+			return;
+
+		foreach (var playerId in list)
 		{
-			if (lives > 0) count++;
+			RevivePlayer(playerId);
 		}
-		return count;
 	}
 
-	public static int GetPlayerLives(ulong id)
-	{
-		return Instance._healthById.TryGetValue(id, out var lives) ? lives : -1;
-	}
-
-	private void SetLives(ulong id, int lives)
+	private async Awaitable KillPlayer(ulong id)
 	{
 		if (!IsServer)
 			return;
 
-		// add some sort of verification here
+		// add some verification here
 
-		SetPlayerLivesRpc(id, lives);
+		if (!AlivePlayers.Contains(id))
+			return;
+
+		if (!GameManager.GetPlayerData(id, out var playerData))
+			return;
+
+		if (!playerData.networkReference.TryGet(out NetworkObject networkObject))
+			return;
+
+		networkObject.Despawn();
+		await Awaitable.NextFrameAsync();
+
+		AlivePlayers.Remove(id);
+		print("Player " + id + " has died.");
 	}
 
-	[Rpc(SendTo.Everyone)]
-	private void SetPlayerLivesRpc(ulong id, int lives)
+	public void RevivePlayer(ulong id)
 	{
-		_healthById[id] = lives;
-		OnPlayerLivesChanged?.Invoke(id, lives);
+		if (!IsServer)
+			return;
+
+		// add some verification here
+
+		if (AlivePlayers.Contains(id))
+		{
+			print("Player " + id + " is already alive.");
+			return;
+		}
+
+		AlivePlayers.Add(id);
+		print("Player " + id + " has been revived.");
+	}
+
+	public static int GetAlivePlayerCount()
+	{
+		return Instance.AlivePlayers.Count;
+	}
+
+	public static bool IsPlayerAlive(ulong id)
+	{
+		return Instance.AlivePlayers.Contains(id);
+	}
+
+	public List<Transform> GetAlivePlayerTransforms()
+	{
+		List<Transform> aliveTransforms = new List<Transform>();
+		foreach (var playerId in AlivePlayers)
+		{
+			if (GameManager.GetPlayerData(playerId, out var data))
+			{
+				if (data.networkReference.TryGet(out NetworkObject networkObject))
+				{
+					aliveTransforms.Add(networkObject.transform);
+				}
+				else
+				{
+					Debug.LogWarning($"Player {playerId} does not have a valid NetworkObject.");
+				}
+			}
+		}
+		return aliveTransforms;
 	}
 }

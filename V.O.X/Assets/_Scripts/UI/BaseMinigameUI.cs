@@ -16,9 +16,9 @@ public abstract class BaseMinigameUI : NetworkBehaviour
 		countdownUI.SetActive(false);
 		MinigameManager = manager;
 
+		BaseMinigameManager.OnCountdownCompleted += HandleCountdownCompleted;
 		if (IsServer)
 		{
-			BaseMinigameManager.OnCountdownCompleted += HandleCountdownCompleted;
 			BaseMinigameManager.Timer.OnValueChanged += HandleTimerValueChanged;
 			StartCoroutine(UICoroutine());
 		}
@@ -27,10 +27,11 @@ public abstract class BaseMinigameUI : NetworkBehaviour
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
+		BaseMinigameManager.OnCountdownCompleted -= HandleCountdownCompleted;
+
 		if (!IsServer)
 			return;
 
-		BaseMinigameManager.OnCountdownCompleted -= HandleCountdownCompleted;
 		BaseMinigameManager.Timer.OnValueChanged -= HandleTimerValueChanged;
 	}
 

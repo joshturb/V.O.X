@@ -1,10 +1,11 @@
 using Unity.Netcode;
 using UnityEngine;
+using Steamworks;
 using System;
 
 public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 {
-	public static event Action<ulong, Vector3> OnPlayerSpawned_E;
+	public static event Action<ulong> OnPlayerSpawned_E;
 	[SerializeField] private NetworkObject playerObj;
 	[SerializeField] private Transform[] spawnPoints;
 
@@ -20,6 +21,19 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		};
 
 		SpawnPlayer(NetworkManager.ServerClientId);
+	}
+
+	public override void OnDestroy()
+	{
+		base.OnDestroy();
+		if (!IsServer)
+			return;
+
+		NetworkManager.Singleton.ConnectionApprovalCallback -= ApprovalCheck;
+		NetworkManager.Singleton.OnClientConnectedCallback -= (clientId) =>
+		{
+			SpawnPlayer(clientId);
+		};
 	}
 
 	private void ApprovalCheck(NetworkManager.ConnectionApprovalRequest request, NetworkManager.ConnectionApprovalResponse response)
@@ -42,13 +56,28 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		playerObject.name = $"Player_{clientId}";
 		playerObject.SpawnAsPlayerObject(clientId);
 
-		OnPlayerSpawnedRpc(clientId, playerObject.transform.position);
+		HandlePlayerSpawnedRpc(new(playerObject), new RpcParams
+		{
+			Send = new RpcSendParams
+			{
+				Target = RpcTarget.Single(clientId, RpcTargetUse.Temp)
+			}
+		});
+
 		Debug.Log($"Spawned player: {playerObject.name} at {spawnPoints[index].position}");
 	}
 
-	[Rpc(SendTo.Everyone)]
-	public void OnPlayerSpawnedRpc(ulong clientId, Vector3 position)
+	[Rpc(SendTo.SpecifiedInParams)]
+	private void HandlePlayerSpawnedRpc(NetworkObjectReference playerReference, RpcParams rpcParams = default)
 	{
-		OnPlayerSpawned_E?.Invoke(clientId, position);
+		var playerData = new PlayerData
+		{
+			clientId = NetworkManager.LocalClientId,
+			steamId = SteamClient.SteamId,
+			playerName = SteamClient.Name,
+			networkReference = playerReference
+		};
+
+		GameManager.Instance.AddPlayerDataRpc(playerData);
 	}
 }

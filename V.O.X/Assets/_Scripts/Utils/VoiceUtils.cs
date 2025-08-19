@@ -110,7 +110,7 @@ public static class VoiceUtils
         float s0 = cmndf[tau_m1];
         float s1 = cmndf[bestTau];
         float s2 = cmndf[tau_p1];
-        float denom = (2f * s1 - s2 - s0);
+        float denom = 2f * s1 - s2 - s0;
         float shift = denom == 0 ? 0 : 0.5f * (s2 - s0) / denom;
         float refinedTau = Mathf.Clamp(bestTau + shift, minTau, maxTau);
 

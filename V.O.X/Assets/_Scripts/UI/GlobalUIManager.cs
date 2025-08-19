@@ -2,7 +2,6 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Unity.Netcode;
 using UnityEngine;
-using System;
 using TMPro;
 
 public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
@@ -10,21 +9,16 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 	[SerializeField] private Image glitchImage;
 	[SerializeField] private Image healthImage;
 	[SerializeField] private TMP_Text timerText;
-	public Sprite[] healthImages;
+	public Sprite aliveImage;
+	public Sprite deadImage;
 
 	protected override void Awake()
 	{
 		base.Awake();
 		NetworkManager.Singleton.SceneManager.OnUnload += OnSceneUnload;
 		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoadComplete;
-		PlayerManager.OnPlayerLivesChanged += UpdateHealthUI;
-	}
-
-	void Start()
-	{
-		if (!IsServer)
-			return;
-
+		PlayerManager.OnPlayerDeath_E += (id) => UpdateHealthUI(id, true);
+		PlayerManager.OnPlayerRevive_E += (id) => UpdateHealthUI(id, false);
 		BaseMinigameManager.Timer.OnValueChanged += UpdateTimerUI;
 	}
 
@@ -36,11 +30,8 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 
 		NetworkManager.Singleton.SceneManager.OnUnload -= OnSceneUnload;
 		NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoadComplete;
-		PlayerManager.OnPlayerLivesChanged -= UpdateHealthUI;
-
-		if (!IsServer)
-			return;
-
+		PlayerManager.OnPlayerDeath_E -= (id) => UpdateHealthUI(id, true);
+		PlayerManager.OnPlayerRevive_E -= (id) => UpdateHealthUI(id, false);
 		BaseMinigameManager.Timer.OnValueChanged -= UpdateTimerUI;
 	}
 
@@ -52,11 +43,11 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 		timerText.text = newValue.ToString("F0");
 	}
 
-	private void UpdateHealthUI(ulong id, int lives)
+	private void UpdateHealthUI(ulong id, bool dead)
 	{
 		if (id == NetworkManager.LocalClientId)
 		{
-			healthImage.sprite = healthImages[Mathf.Clamp(lives, 0, healthImages.Length - 1)];
+			healthImage.sprite = dead ? deadImage : aliveImage;
 		}
 	}
 

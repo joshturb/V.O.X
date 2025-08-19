@@ -11,7 +11,7 @@ public class RaceToHeavenManager : BaseMinigameManager
 		if (!IsServer)
 			return;
 
-		Gate.OnPlayerEnteredGate += (id, gateType) =>
+		Gate.OnPlayerEnteredGate_S += (id, gateType) =>
 		{
 			if (gateType == Gate.GateType.Finish)
 			{
@@ -30,7 +30,7 @@ public class RaceToHeavenManager : BaseMinigameManager
 		if (!IsServer)
 			return;
 
-		Gate.OnPlayerEnteredGate -= (id, gateType) =>
+		Gate.OnPlayerEnteredGate_S -= (id, gateType) =>
 		{
 			if (gateType == Gate.GateType.Finish)
 			{

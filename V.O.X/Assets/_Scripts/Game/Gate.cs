@@ -11,7 +11,7 @@ public class Gate : NetworkBehaviour
 		Death
 	}
 	public GateType gateType;
-	public static event Action<ulong, GateType> OnPlayerEnteredGate;
+	public static event Action<ulong, GateType> OnPlayerEnteredGate_S;
 
 	void OnTriggerEnter(Collider collider)
 	{
@@ -30,6 +30,6 @@ public class Gate : NetworkBehaviour
 			return;
 		}
 
-		OnPlayerEnteredGate?.Invoke(networkObject.OwnerClientId, gateType);
+		OnPlayerEnteredGate_S?.Invoke(networkObject.OwnerClientId, gateType);
 	}
 }

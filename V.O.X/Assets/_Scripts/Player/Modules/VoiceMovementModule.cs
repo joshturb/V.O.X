@@ -15,72 +15,57 @@ public class VoiceMovementModule : PlayerModule
     [SerializeField] private float pitchDecisionThresholdHz = 100f;
 	// Pitch detection now handled by MicrophoneModule
     [Header("Movement Gating")]
-    [Tooltip("Minimum loudness required (dBFS) to allow movement")] 
+    [Tooltip("Minimum loudness required (dBFS) to allow movement")]
     [SerializeField] private float movementDbThreshold = -50f;
 	[SerializeField] private Vector3 movement;
 	// Removed loudnessSpeedBoost in favor of AnimationCurves
 
-    [Header("Debug (Runtime)")]
-    [SerializeField] private float debugPitchHz;
-    [SerializeField] private float debugAveragePitchHz;
-    [SerializeField] private float debugConfidence;
-    [SerializeField] private bool debugMovingForward;
-    [SerializeField] private bool debugMovingUp;
+	private FPCModule fpcModule;
+	private MicrophoneModule microphoneModule;
 
-    private WaveFormat waveFormat;
-	private float currentPitch = 0f; // mirror from MicrophoneModule
-	private float averagePitch = 0f; // mirror from MicrophoneModule
-	private FPCModule _fpcModule;
-	private MicrophoneModule _microphoneModule;
-
-    private float _lastDb = -80f;
-    private float _lastConfidence = 0f;
-
+	private float currentPitch = 0f;
+    private float currentLoudness = -80f;
 	private bool isLocked;
     public override bool IsLocked { get => isLocked; set => isLocked = value; }
-
     private bool isInitialized;
     public override bool IsInitialized { get => isInitialized; set => isInitialized = value; }
+	
+    [SerializeField] private bool debugMovingForward;
+    [SerializeField] private bool debugMovingUp;
 
 	public override void InitializeModule(FPCModule fPCModule)
 	{
 		IsLocked = false;
-		_fpcModule = fPCModule;
-
-	EnsureCurves();
+		fpcModule = fPCModule;
 
 		if (!fPCModule.IsOwner)
 		{
-			Debug.LogWarning($"VoiceMovementModule: Not owner for client ID {_fpcModule.OwnerClientId}");
+			Debug.LogWarning($"VoiceMovementModule: Not owner for client ID {fpcModule.OwnerClientId}");
 			return;
 		}
 
-		if (!Slot.TryGetSlotById(_fpcModule.OwnerClientId, out Slot slot))
+		if (!Slot.TryGetSlotById(fpcModule.OwnerClientId, out Slot slot))
 		{
-			Debug.LogError($"VoiceMovementModule: Slot not found for client ID {_fpcModule.OwnerClientId}");
+			Debug.LogError($"VoiceMovementModule: Slot not found for client ID {fpcModule.OwnerClientId}");
 			return;
 		}
 
 		if (!slot.TryGetModule(out MicrophoneModule microphoneModule))
 		{
-			Debug.LogError($"VoiceMovementModule: MicrophoneModule not found for client ID {_fpcModule.OwnerClientId}");
+			Debug.LogError($"VoiceMovementModule: MicrophoneModule not found for client ID {fpcModule.OwnerClientId}");
 			return;
 		}
 
-		_microphoneModule = microphoneModule;
-		microphoneModule.OnAudioDataReceived_E += HandleAudioDataReceived;
-		microphoneModule.OnAudioStreamReset_E += HandleAudioStreamReset;
+		this.microphoneModule = microphoneModule;
 		microphoneModule.OnVoiceMetricsUpdated_E += HandleVoiceMetricsUpdated;
-    }
+	}
 
 	public override void OnModuleRemoved(FPCModule fPCModule)
 	{
-		if (_microphoneModule != null)
+		if (microphoneModule != null)
 		{
-			_microphoneModule.OnAudioDataReceived_E -= HandleAudioDataReceived;
-			_microphoneModule.OnAudioStreamReset_E -= HandleAudioStreamReset;
-			_microphoneModule.OnVoiceMetricsUpdated_E -= HandleVoiceMetricsUpdated;
-			_microphoneModule = null;
+			microphoneModule.OnVoiceMetricsUpdated_E -= HandleVoiceMetricsUpdated;
+			microphoneModule = null;
 		}
 	}
 
@@ -94,7 +79,7 @@ public class VoiceMovementModule : PlayerModule
 			return;
 		}
 
-		if (_microphoneModule == null)
+		if (microphoneModule == null)
 		{
 			Debug.LogWarning("VoiceMovementModule.UpdateModule skipped: MicrophoneModule is null");
 			return;
@@ -105,10 +90,10 @@ public class VoiceMovementModule : PlayerModule
 		debugMovingUp = false;
 
 		// Amplitude gating to ignore subtle sounds
-		if (_lastDb >= movementDbThreshold)
+		if (currentLoudness >= movementDbThreshold)
 		{
-			float forwardSpeedEff = forwardSpeedByDb != null && forwardSpeedByDb.keys.Length > 0 ? forwardSpeedByDb.Evaluate(_lastDb) : 0f;
-			float upSpeedEff = upSpeedByDb != null && upSpeedByDb.keys.Length > 0 ? upSpeedByDb.Evaluate(_lastDb) : 0f;
+			float forwardSpeedEff = forwardSpeedByDb != null && forwardSpeedByDb.keys.Length > 0 ? forwardSpeedByDb.Evaluate(currentLoudness) : 0f;
+			float upSpeedEff = upSpeedByDb != null && upSpeedByDb.keys.Length > 0 ? upSpeedByDb.Evaluate(currentLoudness) : 0f;
 			// Simple absolute decision: below threshold -> forward, above/equal -> up
 			if (currentPitch > 0f && currentPitch < pitchDecisionThresholdHz)
 			{
@@ -135,71 +120,30 @@ public class VoiceMovementModule : PlayerModule
 
 		fPCModule.clientMovement = movement;
 		this.movement = movement;
-
-		// Update debug values
-		debugPitchHz = currentPitch;
-		debugAveragePitchHz = averagePitch;
 	}
 
-    private void HandleAudioDataReceived(ulong clientId, ArraySegment<float> data)
-    {
-        if (IsLocked)
-			return;
-
-	// Now unused: pitch is computed in MicrophoneModule; we just mirror metrics there via subscription below.
-    }
-
-    private void HandleAudioStreamReset(ulong clientId, WaveFormat waveFormat)
-    {
-        this.waveFormat = waveFormat;
-    }
-
-	private void HandleVoiceMetricsUpdated(ulong clientId, float pitch, float avgPitch, float db, float confidence)
+	private void HandleVoiceMetricsUpdated(ulong clientId, VoiceMetrics metrics)
 	{
-		if (clientId != _fpcModule.OwnerClientId)
+		if (clientId != fpcModule.OwnerClientId)
 			return;
-		currentPitch = pitch;
-		averagePitch = avgPitch;
-		_lastDb = db;
-		_lastConfidence = confidence;
-		debugConfidence = confidence;
+
+		currentPitch = metrics.Pitch;
+		currentLoudness = metrics.LoudnessDb;
 	}
 
 	private void OnEnable()
 	{
-		if (_microphoneModule != null)
+		if (microphoneModule != null)
 		{
-			_microphoneModule.OnVoiceMetricsUpdated_E += HandleVoiceMetricsUpdated;
+			microphoneModule.OnVoiceMetricsUpdated_E += HandleVoiceMetricsUpdated;
 		}
 	}
 
 	private void OnDisable()
 	{
-		if (_microphoneModule != null)
+		if (microphoneModule != null)
 		{
-			_microphoneModule.OnVoiceMetricsUpdated_E -= HandleVoiceMetricsUpdated;
-		}
-	}
-
-	private void EnsureCurves()
-	{
-		// Initialize default curves if empty so designers have a starting point.
-		// X axis in dBFS: from movementDbThreshold to 0 dB.
-		if (forwardSpeedByDb == null || forwardSpeedByDb.keys.Length == 0)
-		{
-			forwardSpeedByDb = new AnimationCurve(
-				new Keyframe(movementDbThreshold, 0f, 0f, 0f),
-				new Keyframe(Mathf.Lerp(movementDbThreshold, 0f, 0.5f), 2f),
-				new Keyframe(0f, 4f, 0f, 0f)
-			);
-		}
-		if (upSpeedByDb == null || upSpeedByDb.keys.Length == 0)
-		{
-			upSpeedByDb = new AnimationCurve(
-				new Keyframe(movementDbThreshold, 0f, 0f, 0f),
-				new Keyframe(Mathf.Lerp(movementDbThreshold, 0f, 0.5f), 3f),
-				new Keyframe(0f, 6f, 0f, 0f)
-			);
+			microphoneModule.OnVoiceMetricsUpdated_E -= HandleVoiceMetricsUpdated;
 		}
 	}
 }
