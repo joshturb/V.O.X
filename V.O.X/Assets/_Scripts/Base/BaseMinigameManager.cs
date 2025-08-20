@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.Netcode.Components;
 using UnityEngine.Rendering;
 using Unity.Netcode;
 using UnityEngine;
@@ -41,11 +40,10 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 	public List<ulong> PlayersInRound = new();
 	public PlayerModule[] requiredModules;
 	public Transform[] playerPositions;
-	public NetworkObject playerSlotPrefab;
-	public NetworkObject slotParent;
 	public float countdownDuration = 5f;
 	public float minigameDuration = 60f;
 	private float minigameStartTime;
+	private bool isInitialized;
 
 	protected virtual void Awake()
 	{
@@ -82,9 +80,10 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 
 	public virtual void OnMinigameLoaded_S(MiniGame game, List<ulong> list)
 	{
-		if (game is MiniGame.Blank)
+		if (isInitialized)
 			return;
 
+		isInitialized = true;
 		PlayersInRound = list;
 
 		if (playerPositions.Length > 0)
@@ -95,13 +94,12 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 				(playerPositions[j], playerPositions[i]) = (playerPositions[i], playerPositions[j]);
 			}
 
+			print(PlayersInRound.Count);
 			for (int i = 0; i < PlayersInRound.Count; i++)
 			{
-				SpawnSlot(PlayersInRound[i]);
-
 				if (i < playerPositions.Length)
 				{
-					TeleportPlayer(PlayersInRound[i], playerPositions[i].position, playerPositions[i].rotation);
+					GameManager.Instance.TeleportPlayer(PlayersInRound[i], playerPositions[i].position, playerPositions[i].rotation);
 				}
 			}
 		}
@@ -116,25 +114,6 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		this.minigameStartTime = minigameStartTime;
 		MinigameUI.Initialize(this);
 		OnMinigameInitialized?.Invoke(this);
-	}
-
-	private void SpawnSlot(ulong clientId)
-	{
-		var obj = Instantiate(playerSlotPrefab, slotParent.transform);
-		if (!obj.TryGetComponent(out Slot slotComponent))
-		{
-			Debug.LogError("Failed to instantiate player slot.");
-			return;
-		}
-		obj.Spawn();
-
-		if (!obj.TrySetParent(slotParent.transform))
-		{
-			Debug.LogError("Failed to set parent for player slot.");
-			return;
-		}
-
-		slotComponent.SetOccupant(clientId);
 	}
 
 	public virtual void StartMinigame()
@@ -154,9 +133,11 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 
 	private IEnumerator MinigameCoroutine()
 	{
+		yield return null;
+
 		foreach (var item in PlayersInRound)
 		{
-			FreezePlayer(item);
+			GameManager.Instance.FreezePlayer(item);
 		}
 
 		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - minigameStartTime < countdownDuration)
@@ -170,7 +151,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 
 		foreach (var item in PlayersInRound)
 		{
-			UnFreezePlayer(item);
+			GameManager.Instance.UnFreezePlayer(item);
 		}
 
 		float startTime = NetworkManager.Singleton.ServerTime.TimeAsFloat;
@@ -186,132 +167,6 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		}
 
 		EndMinigame();
-	}
-
-	protected bool TryGetModuleLocker(ulong id, out ModuleLocker moduleLocker)
-	{
-		moduleLocker = null;
-
-		if (!IsServer)
-		{
-			Debug.Log("GetModuleLocker: Not the server.");
-			return false;
-		}
-
-		if (!PlayersInRound.Contains(id))
-		{
-			Debug.Log("GetModuleLocker: Player id " + id + " not in PlayersInRound.");
-			return false;
-		}
-
-		if (!Referencer.TryGetReferencer(id, out var referencer))
-		{
-			Debug.Log("GetModuleLocker: No referencer found for player id " + id);
-			return false;
-		}
-
-		if (!referencer.TryGetCachedComponent(out moduleLocker))
-		{
-			Debug.Log("GetModuleLocker: ModuleLocker component not found in referencer for player id " + id);
-			return false;
-		}
-
-		Debug.Log("GetModuleLocker: Found ModuleLocker for player id " + id);
-		return true;
-	}
-
-	protected void FreezePlayer(ulong clientId, bool freezeCamera = false)
-	{
-		if (!IsServer)
-		{
-			Debug.Log("FreezePlayer: Not the server.");
-			return;
-		}
-
-		if (!PlayersInRound.Contains(clientId))
-		{
-			Debug.Log($"FreezePlayer: ClientId {clientId} not in PlayersInRound.");
-			return;
-		}
-
-		if (!TryGetModuleLocker(clientId, out var moduleLocker))
-		{
-			Debug.Log($"FreezePlayer: No ModuleLocker found for ClientId {clientId}.");
-			return;
-		}
-
-		moduleLocker.LockAllModulesRpc(freezeCamera);
-	}
-
-	protected void UnFreezePlayer(ulong clientId)
-	{
-		if (!IsServer)
-		{
-			Debug.Log("UnFreezePlayer: Not the server.");
-			return;
-		}
-
-		if (!PlayersInRound.Contains(clientId))
-		{
-			Debug.Log($"UnFreezePlayer: ClientId {clientId} not in PlayersInRound.");
-			return;
-		}
-
-		if (!TryGetModuleLocker(clientId, out var moduleLocker))
-		{
-			Debug.Log($"UnFreezePlayer: No ModuleLocker found for ClientId {clientId}.");
-			return;
-		}
-
-		moduleLocker.UnlockAllModulesRpc();
-	}
-
-	protected void TeleportPlayer(ulong clientId, Vector3 position, Quaternion rotation)
-	{
-		if (!IsServer)
-		{
-			Debug.Log("TeleportPlayer: Not the server.");
-			return;
-		}
-
-		if (!PlayersInRound.Contains(clientId))
-		{
-			Debug.Log($"TeleportPlayer: ClientId {clientId} not in PlayersInRound.");
-			return;
-		}
-
-		TeleportPlayerClientRpc(position, rotation, new RpcParams
-		{
-			Send = new RpcSendParams
-			{
-				Target = RpcTarget.Single(clientId, RpcTargetUse.Temp)
-			}
-		});
-	}
-
-	[Rpc(SendTo.SpecifiedInParams)]
-	private void TeleportPlayerClientRpc(Vector3 position, Quaternion rotation, RpcParams rpcParams = default)
-	{
-
-		var networkObject = NetworkManager.Singleton.LocalClient.PlayerObject;
-		if (networkObject != null)
-		{
-			Debug.Log($"Teleporting {NetworkManager.LocalClientId} to {position}");
-			if (!networkObject.TryGetComponent(out CharacterController controller))
-			{
-				Debug.Log("TeleportPlayerClientRpc: No CharacterController found.");
-				return;
-			}
-
-			controller.enabled = false;
-
-			if (networkObject.TryGetComponent<NetworkTransform>(out var networkTransform))
-			{
-				networkTransform.Teleport(position, rotation, Vector3.one);
-			}
-
-			controller.enabled = true;
-		}
 	}
 
 	[Rpc(SendTo.Everyone)]

@@ -1,50 +1,39 @@
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
-using System;
 
 public class Slot : NetworkBehaviour
 {
-	public NetworkVariable<ulong> OccupantId = new(99);
 	public List<BaseSlotModule> slotModules = new();
-	public static event Action<Slot> OnSlotInitialized_E;
 
-	void Awake()
+	void Start()
 	{
-		List<BaseSlotModule> slotModules = new(GetComponents<BaseSlotModule>());
-		SetModules(slotModules);
+		if (!IsOwner)
+			return;
 
+		slotModules = new(GetComponents<BaseSlotModule>());
 		for (int i = 0; i < slotModules.Count; i++)
 		{
 			slotModules[i].Initialize(this);
 		}
 
-		OnSlotInitialized_E?.Invoke(this);
+		PlayerManager.OnPlayerDeath_E += HandlePlayerDeathRpc;
 	}
 
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
-		if (!IsServer)
+		if (!IsOwner)
 			return;
-
-		foreach (var module in slotModules)
-		{
-			module.UnsubscribeFromEvents();
-		}
+		
+		PlayerManager.OnPlayerDeath_E -= HandlePlayerDeathRpc;
 	}
 
-	public void SetOccupant(ulong clientId)
+	[Rpc(SendTo.Server)]
+	private void HandlePlayerDeathRpc(ulong id)
 	{
-		if (!IsServer)
-			return;
-
-		OccupantId.Value = clientId;
-	}
-
-	public void SetModules(List<BaseSlotModule> modules)
-	{
-		slotModules = modules;
+		if (OwnerClientId == id)
+			NetworkObject.Despawn(true);
 	}
 
 	public bool TryGetModule<T>(out T module) where T : BaseSlotModule
@@ -65,7 +54,7 @@ public class Slot : NetworkBehaviour
 	{
 		foreach (var s in FindObjectsByType<Slot>(FindObjectsSortMode.None))
 		{
-			if (s.OccupantId.Value == slotId)
+			if (s.OwnerClientId == slotId)
 			{
 				slot = s;
 				return true;

@@ -6,8 +6,8 @@ using System;
 public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 {
 	public static event Action<ulong> OnPlayerSpawned_E;
+	public NetworkObject slotPrefab;
 	[SerializeField] private NetworkObject playerObj;
-	[SerializeField] private Transform[] spawnPoints;
 
 	private void Start()
 	{
@@ -17,12 +17,10 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		NetworkManager.Singleton.ConnectionApprovalCallback = ApprovalCheck;
 		NetworkManager.Singleton.OnClientConnectedCallback += (clientId) =>
 		{
-			int index = UnityEngine.Random.Range(0, spawnPoints.Length);
-			SpawnPlayer(clientId, spawnPoints[index].position, spawnPoints[index].rotation);
+			SpawnPlayer(clientId, Vector3.zero, Quaternion.identity);
 		};
 
-		int index = UnityEngine.Random.Range(0, spawnPoints.Length);
-		SpawnPlayer(NetworkManager.ServerClientId, spawnPoints[index].position, spawnPoints[index].rotation);
+		SpawnPlayer(NetworkManager.ServerClientId, Vector3.zero, Quaternion.identity);
 	}
 
 	public override void OnDestroy()
@@ -34,8 +32,7 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		NetworkManager.Singleton.ConnectionApprovalCallback -= ApprovalCheck;
 		NetworkManager.Singleton.OnClientConnectedCallback -= (clientId) =>
 		{
-			int index = UnityEngine.Random.Range(0, spawnPoints.Length);
-			SpawnPlayer(clientId, spawnPoints[index].position, spawnPoints[index].rotation);
+			SpawnPlayer(clientId, Vector3.zero, Quaternion.identity);
 		};
 	}
 
@@ -60,6 +57,9 @@ public class PlayerSpawner : NetworkSingleton<PlayerSpawner>
 		NetworkObject playerObject = Instantiate(playerObj, position, rotation);
 		playerObject.name = $"Player_{clientId}";
 		playerObject.SpawnAsPlayerObject(clientId);
+		NetworkObject slotObject = Instantiate(slotPrefab);
+		slotObject.name = $"Slot_{clientId}";
+		slotObject.SpawnWithOwnership(clientId);
 
 		HandlePlayerSpawnedRpc(new(playerObject), new RpcParams
 		{

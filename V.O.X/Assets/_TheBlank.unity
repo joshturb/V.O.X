@@ -431,7 +431,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1965184142}
         m_TargetAssemblyTypeName: TheBlankManager, Assembly-CSharp
-        m_MethodName: StartMinigame
+        m_MethodName: StartGame
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -755,8 +755,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  Type: 0
-  MinigameUI: {fileID: 0}
   renderSettings:
     skyboxMaterial: {fileID: 0}
     realtimeShadowColor: {r: 0, g: 0, b: 0, a: 0}
@@ -768,7 +766,6 @@ MonoBehaviour:
     fogColor: {r: 0, g: 0, b: 0, a: 0}
     fogMode: 0
     fogDensity: 0
-  PlayersInRound: 
   requiredModules:
   - {fileID: 11400000, guid: 9608a9b951f10b843a37d0ee1364a308, type: 2}
   - {fileID: 11400000, guid: de99d4ac109c712429000c0f8491d08c, type: 2}
@@ -781,10 +778,6 @@ MonoBehaviour:
   - {fileID: 108573599}
   - {fileID: 1280198268}
   - {fileID: 1105305339}
-  playerSlotPrefab: {fileID: 0}
-  slotParent: {fileID: 0}
-  countdownDuration: 5
-  minigameDuration: 60
 --- !u!114 &1965184143
 MonoBehaviour:
   m_ObjectHideFlags: 0

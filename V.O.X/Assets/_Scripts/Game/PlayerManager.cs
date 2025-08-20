@@ -74,12 +74,21 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 		{
 			foreach (var item in GameManager.PlayerDatas)
 			{
+				if (AlivePlayers.Contains(item.clientId))
+					continue;
+
 				AlivePlayers.Add(item.clientId);
 			}
 		}
 		else
 		{
-			AlivePlayers.Clear();
+			foreach (var item in GameManager.PlayerDatas)
+			{
+				if (AlivePlayers.Contains(item.clientId))
+					continue;
+					
+				RepawnPlayer(item.clientId);
+			}
 		}
 	}
 
@@ -99,32 +108,25 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 		if (!playerData.networkReference.TryGet(out NetworkObject networkObject))
 			return;
 
-		networkObject.Despawn();
+		networkObject.Despawn(true);
 		await Awaitable.NextFrameAsync();
 
 		AlivePlayers.Remove(id);
 		print("Player " + id + " has died.");
 	}
 
-	public void RevivePlayer(ulong id)
+	public void RepawnPlayer(ulong id)
 	{
 		if (!IsServer)
 			return;
 
 		// add some verification here
-
-		if (AlivePlayers.Contains(id))
-		{
-			print("Player " + id + " is already alive.");
-			return;
-		}
-
 		BaseMinigameManager currentMinigameManager = GameManager.Instance.currentMinigameManager;
 		int index = UnityEngine.Random.Range(0, currentMinigameManager.playerPositions.Length);
 
-		AlivePlayers.Add(id);
 		currentMinigameManager.playerPositions[index].GetPositionAndRotation(out Vector3 spawnPosition, out Quaternion spawnRotation);
 		PlayerSpawner.Instance.SpawnPlayer(id, spawnPosition, spawnRotation);
+		AlivePlayers.Add(id);
 		print("Player " + id + " has been revived.");
 	}
 

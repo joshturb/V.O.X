@@ -72,10 +72,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  OccupantId:
-    m_InternalValue: 0
-  slotModules:
-  - {fileID: 0}
+  slotModules: []
 --- !u!114 &5397679876460675436
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89,3 +86,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
+  minPitchHz: 80
+  maxPitchHz: 800
+  yinThreshold: 0.15
+  minDbFs: -60
+  pitchSmoothingFactor: 0.1
+  averagePitchSmoothing: 0.01
+  amplitudeWeightPower: 1
+  currentPitch: 0
+  averagePitch: 0
+  loudnessDb: -80
+  confidence: 0

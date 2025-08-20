@@ -16,14 +16,25 @@ public class Referencer : NetworkBehaviour, IEquatable<Referencer>
 
 	public override void OnNetworkSpawn()
 	{
+		base.OnNetworkSpawn();
 		AllReferencers.Add(this);
 		ReferencersByIds.Add(OwnerClientId, this);
 	}
 	
 	public override void OnNetworkDespawn()
 	{
-		AllReferencers.Remove(this);
-		ReferencersByIds.Remove(OwnerClientId);
+		RemoveReferencerRpc(OwnerClientId);
+		base.OnNetworkDespawn();
+	}
+
+	[Rpc(SendTo.Everyone)]
+	private void RemoveReferencerRpc(ulong id)
+	{
+		if (ReferencersByIds.TryGetValue(id, out var referencer))
+		{
+			AllReferencers.Remove(referencer);
+			ReferencersByIds.Remove(id);
+		}
 	}
 
 	private void CacheComponents()

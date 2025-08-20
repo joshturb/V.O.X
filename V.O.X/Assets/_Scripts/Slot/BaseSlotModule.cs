@@ -21,14 +21,11 @@ public abstract class BaseSlotModule : NetworkBehaviour
 
 	public bool OwnsComponent(ulong playerId)
 	{
-		if (slot.OccupantId.Value == 99)
-			return false;
-
-		return slot.OccupantId.Value == playerId;
+		return OwnerClientId == playerId;
 	}
 
 	public ulong GetOccupantId()
 	{
-		return slot.OccupantId.Value;
+		return OwnerClientId;
 	}
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Cinemachine;
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class FPCModule : NetworkBehaviour
 {
@@ -37,6 +38,7 @@ public class FPCModule : NetworkBehaviour
 			return;
         }
 
+		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoadComplete;
 		BaseMinigameManager.OnMinigameInitialized += OnMinigameInitialized;
 		_owner.GetCachedComponent<CinemachineCamera>().Priority = 0;
 		if (thirdPersonObject != null)
@@ -54,7 +56,27 @@ public class FPCModule : NetworkBehaviour
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
+		NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoadComplete;
 		BaseMinigameManager.OnMinigameInitialized -= OnMinigameInitialized;
+	}
+
+	private void OnSceneLoadComplete(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
+	{
+		if (loadSceneMode != LoadSceneMode.Additive)
+			return;
+
+		if (sceneName != GameManager.Instance.theBlankSceneName)
+			return;
+
+		for (int i = modules.Count - 1; i >= 0; i--)
+		{
+			RemoveModule(modules[i]);
+		}
+
+		foreach (var module in TheBlankManager.Instance.requiredModules)
+		{
+			AddModule(module);
+		}
 	}
 
 	private void OnMinigameInitialized(BaseMinigameManager manager)

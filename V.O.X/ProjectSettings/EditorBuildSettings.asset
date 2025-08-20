@@ -15,11 +15,8 @@ EditorBuildSettings:
     path: Assets/_Game.unity
     guid: 4e2193de970fb7748ab5498633c94a24
   - enabled: 1
-    path: Assets/TheBlank.unity
+    path: Assets/_TheBlank.unity
     guid: 245c3f665f8cbbf40bd6e4e7a9f19b53
-  - enabled: 1
-    path: Assets/Replicate.unity
-    guid: c7e54c03d8373154ab0cd136f87d9600
   - enabled: 1
     path: Assets/Telephone.unity
     guid: 16095cb005b571141a113dff1fa47df3

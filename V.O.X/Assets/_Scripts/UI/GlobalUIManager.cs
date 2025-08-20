@@ -30,6 +30,9 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 
 	private void UpdateTimerUI(float previousValue, float newValue)
 	{
+		if (GameManager.Instance.currentMinigameManager == null)
+			return;
+
 		if (!GameManager.Instance.currentMinigameManager.MinigameUI.countdownEnded)
 			return;		
 

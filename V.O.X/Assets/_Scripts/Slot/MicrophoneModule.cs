@@ -54,21 +54,15 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 	{
 		base.Initialize(slot);
 		ownerSlot = slot;
-		slot.OccupantId.OnValueChanged += OnSlotOccupied;
+		_occupantId = slot.OwnerClientId;
 		FindFirstObjectByType<DissonanceComms>().SubscribeToRecordedAudio(this);
 	}
 
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
-		ownerSlot.OccupantId.OnValueChanged -= OnSlotOccupied;
 		ownerSlot = null;
 		FindFirstObjectByType<DissonanceComms>().UnsubscribeFromRecordedAudio(this);
-	}
-
-	private void OnSlotOccupied(ulong previousValue, ulong newValue)
-	{
-		_occupantId = newValue;
 	}
 
 	private void ProcessAudio(ArraySegment<float> arraySegment)

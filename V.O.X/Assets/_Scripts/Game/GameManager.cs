@@ -7,6 +7,8 @@ using Unity.Netcode;
 using UnityEngine;
 using System.Linq;
 using System;
+using Unity.Burst.Intrinsics;
+using Unity.Netcode.Components;
 
 public enum MiniGame
 {
@@ -49,16 +51,16 @@ public class GameManager : NetworkSingleton<GameManager>
 {
 	public static NetworkList<PlayerData> PlayerDatas;
 	public static Dictionary<ulong, int> PlayerScores = new();
-	public static NetworkVariable<bool> IsGameRunning = new();
+	public static NetworkVariable<bool> IsGameRunning = new(false);
 	public static event Action<ulong, int> OnScoreUpdated_S;
-	public static event Action<MiniGame, List<ulong>> OnMinigameLoaded_S;
 	public static event Action<MiniGame> OnMinigameUnloaded_S;
 	public static bool CanPlayersJoin = true;
 
 	[Header("Scene Configuration")]
 	public SerializedDictionary<MiniGame, string> minigameScenes;
-	public NetworkVariable<MiniGame> PreviousMinigame = new(MiniGame.Blank);
-	public NetworkVariable<MiniGame> CurrentMinigame = new(MiniGame.Blank);
+	public NetworkVariable<MiniGame> PreviousMinigame = new(MiniGame.None);
+	public NetworkVariable<MiniGame> CurrentMinigame = new(MiniGame.None);
+	public string theBlankSceneName = "_TheBlank";
 	[Range(0.01f, 10)] public float sceneTransitionDelay = 1f;
 
 
@@ -80,7 +82,7 @@ public class GameManager : NetworkSingleton<GameManager>
 		if (!IsServer)
 			return;
 
-		startCoroutine = StartCoroutine(Transition(MiniGame.Blank));
+		startCoroutine = StartCoroutine(Transition(theBlankSceneName));
 
 		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoaded;
 		NetworkManager.Singleton.SceneManager.OnUnloadComplete += OnSceneUnloaded;
@@ -104,7 +106,7 @@ public class GameManager : NetworkSingleton<GameManager>
 		if (!IsServer)
 			return;
 
-		if (playersByScore != null && CurrentMinigame.Value != MiniGame.Blank)
+		if (playersByScore != null)
 		{
 			foreach (var playerId in playersByScore)
 			{
@@ -123,6 +125,11 @@ public class GameManager : NetworkSingleton<GameManager>
 			}
 		}
 
+		if (PlayerManager.GetAlivePlayerCount() <= 1)
+		{
+			IsGameRunning.Value = false;
+		}
+
 		OnMinigameUnloaded_S?.Invoke(CurrentMinigame.Value);
 		Scene sceneToUnload = SceneManager.GetSceneByName(minigameScenes[CurrentMinigame.Value]);
 		NetworkManager.Singleton.SceneManager.UnloadScene(sceneToUnload);
@@ -130,20 +137,31 @@ public class GameManager : NetworkSingleton<GameManager>
 
 	private void OnSceneUnloaded(ulong clientId, string sceneName)
 	{
-		MiniGame nextMinigame = PlayerManager.GetAlivePlayerCount() > 1 ? GetRandomMinigame() : MiniGame.Blank;
+		MiniGame nextMinigame = IsGameRunning.Value ? GetRandomMinigame() : MiniGame.None;
+		string sceneNameToLoad = nextMinigame != MiniGame.None ? minigameScenes[nextMinigame] : theBlankSceneName;
+
+		if (CurrentMinigame.Value != MiniGame.None)
+		{
+			PreviousMinigame.Value = CurrentMinigame.Value;
+		}
+		CurrentMinigame.Value = nextMinigame;
 
 		if (startCoroutine != null)
 		{
 			StopCoroutine(startCoroutine);
 		}
-		print(nextMinigame);
-		startCoroutine = StartCoroutine(Transition(nextMinigame));
+		startCoroutine = StartCoroutine(Transition(sceneNameToLoad));
 	}
 
 	private void OnSceneLoaded(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
 	{
+		if (CurrentMinigame.Value == MiniGame.None)
+			return;
+
+		if (loadSceneMode != LoadSceneMode.Additive)
+			return;
+
 		List<ulong> connectedClients = NetworkManager.Singleton.ConnectedClientsIds.ToList();
-		OnMinigameLoaded_S?.Invoke(CurrentMinigame.Value, connectedClients);
 		FindCurrentMinigameRpc();
 
 		if (currentMinigameManager != null)
@@ -154,16 +172,10 @@ public class GameManager : NetworkSingleton<GameManager>
 		print($"Current Minigame Manager: {currentMinigameManager?.GetType().Name ?? "None"}");
 	}
 
-	private IEnumerator Transition(MiniGame miniGame)
+	private IEnumerator Transition(string sceneName)
 	{
-		if (CurrentMinigame.Value != MiniGame.Blank)
-		{
-			PreviousMinigame.Value = CurrentMinigame.Value;
-		}
-		CurrentMinigame.Value = miniGame;
-
 		yield return new WaitForSeconds(sceneTransitionDelay);
-		NetworkManager.Singleton.SceneManager.LoadScene(minigameScenes[miniGame], LoadSceneMode.Additive);
+		NetworkManager.Singleton.SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
 	}
 
 	private MiniGame GetRandomMinigame()
@@ -174,7 +186,7 @@ public class GameManager : NetworkSingleton<GameManager>
 		// Collect all valid minigames (excluding Blank, the previous game, and ensuring a scene exists in the dictionary)
 		foreach (MiniGame game in availableGames)
 		{
-			if (game != MiniGame.Blank && game != PreviousMinigame.Value && minigameScenes.ContainsKey(game))
+			if (game != MiniGame.None && game != PreviousMinigame.Value && minigameScenes.ContainsKey(game))
 				validGames.Add(game);
 		}
 
@@ -184,7 +196,7 @@ public class GameManager : NetworkSingleton<GameManager>
 			// Ensure a non-Blank game is returned that has an associated scene
 			foreach (MiniGame game in availableGames)
 			{
-				if (game != MiniGame.Blank && minigameScenes.ContainsKey(game))
+				if (game != MiniGame.None && minigameScenes.ContainsKey(game))
 					return game;
 			}
 		}
@@ -251,5 +263,105 @@ public class GameManager : NetworkSingleton<GameManager>
 	private void FindCurrentMinigameRpc()
 	{
 		currentMinigameManager = FindFirstObjectByType<BaseMinigameManager>();
+	}
+
+	public bool TryGetModuleLocker(ulong id, out ModuleLocker moduleLocker)
+	{
+		moduleLocker = null;
+
+		if (!IsServer)
+		{
+			Debug.Log("GetModuleLocker: Not the server.");
+			return false;
+		}
+
+		if (!Referencer.TryGetReferencer(id, out var referencer))
+		{
+			Debug.Log("GetModuleLocker: No referencer found for player id " + id);
+			return false;
+		}
+
+		if (!referencer.TryGetCachedComponent(out moduleLocker))
+		{
+			Debug.Log("GetModuleLocker: ModuleLocker component not found in referencer for player id " + id);
+			return false;
+		}
+
+		return true;
+	}
+
+	public void FreezePlayer(ulong clientId, bool freezeCamera = false)
+	{
+		if (!IsServer)
+		{
+			Debug.Log("FreezePlayer: Not the server.");
+			return;
+		}
+
+		if (!TryGetModuleLocker(clientId, out var moduleLocker))
+		{
+			Debug.Log($"FreezePlayer: No ModuleLocker found for ClientId {clientId}.");
+			return;
+		}
+
+		moduleLocker.LockAllModulesRpc(freezeCamera);
+	}
+
+	public void UnFreezePlayer(ulong clientId)
+	{
+		if (!IsServer)
+		{
+			Debug.Log("UnFreezePlayer: Not the server.");
+			return;
+		}
+
+		if (!TryGetModuleLocker(clientId, out var moduleLocker))
+		{
+			Debug.Log($"UnFreezePlayer: No ModuleLocker found for ClientId {clientId}.");
+			return;
+		}
+
+		moduleLocker.UnlockAllModulesRpc();
+	}
+
+	public void TeleportPlayer(ulong clientId, Vector3 position, Quaternion rotation)
+	{
+		if (!IsServer)
+		{
+			Debug.Log("TeleportPlayer: Not the server.");
+			return;
+		}
+
+		TeleportPlayerClientRpc(position, rotation, new RpcParams
+		{
+			Send = new RpcSendParams
+			{
+				Target = RpcTarget.Single(clientId, RpcTargetUse.Temp)
+			}
+		});
+	}
+
+	[Rpc(SendTo.SpecifiedInParams)]
+	public void TeleportPlayerClientRpc(Vector3 position, Quaternion rotation, RpcParams rpcParams = default)
+	{
+		var networkObject = NetworkManager.Singleton.LocalClient.PlayerObject;
+		if (networkObject != null)
+		{
+			Debug.Log($"Teleporting {NetworkManager.LocalClientId} to {position}");
+			if (!networkObject.TryGetComponent(out CharacterController controller))
+			{
+				Debug.Log("TeleportPlayerClientRpc: No CharacterController found.");
+				return;
+			}
+
+			controller.enabled = false;
+
+			if (networkObject.TryGetComponent<NetworkTransform>(out var networkTransform))
+			{
+				networkTransform.Teleport(position, rotation, Vector3.one);
+			}
+
+			controller.enabled = true;
+		}
 	}
 }
