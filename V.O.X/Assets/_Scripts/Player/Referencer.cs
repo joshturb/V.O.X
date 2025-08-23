@@ -23,18 +23,9 @@ public class Referencer : NetworkBehaviour, IEquatable<Referencer>
 	
 	public override void OnNetworkDespawn()
 	{
-		RemoveReferencerRpc(OwnerClientId);
 		base.OnNetworkDespawn();
-	}
-
-	[Rpc(SendTo.Everyone)]
-	private void RemoveReferencerRpc(ulong id)
-	{
-		if (ReferencersByIds.TryGetValue(id, out var referencer))
-		{
-			AllReferencers.Remove(referencer);
-			ReferencersByIds.Remove(id);
-		}
+		AllReferencers.Remove(this);
+		ReferencersByIds.Remove(OwnerClientId);
 	}
 
 	private void CacheComponents()

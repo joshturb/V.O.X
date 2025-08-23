@@ -35,7 +35,7 @@ RenderSettings:
   m_DefaultReflectionMode: 0
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 1
+  m_ReflectionIntensity: 0
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
   m_UseRadianceAmbientProbe: 0
@@ -660,7 +660,7 @@ GameObject:
   - component: {fileID: 1590262161}
   - component: {fileID: 1590262162}
   m_Layer: 0
-  m_Name: PushToShove
+  m_Name: MinigameManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -720,7 +720,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
-  Type: 3
   MinigameUI: {fileID: 1590262162}
   renderSettings:
     skyboxMaterial: {fileID: 2100000, guid: 2f2df367949a8114d998fd3d4f7eb878, type: 2}
@@ -746,8 +745,6 @@ MonoBehaviour:
   - {fileID: 1555537993}
   - {fileID: 1803070931}
   - {fileID: 1003187046}
-  playerSlotPrefab: {fileID: 5658834152442583192, guid: 976389cd1fed9144aad3198ef99e7545, type: 3}
-  slotParent: {fileID: 1590262160}
   countdownDuration: 5
   minigameDuration: 60
 --- !u!114 &1590262162

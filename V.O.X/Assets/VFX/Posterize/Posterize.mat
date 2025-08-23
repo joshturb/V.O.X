@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Dither
-  m_Shader: {fileID: -6465566751694194690, guid: ee004d0abc56bc94382885ba5d3f42ef, type: 3}
+  m_Name: Posterize
+  m_Shader: {fileID: -6465566751694194690, guid: 1b56b7a7119083c47a145a366b11487c, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -37,8 +37,13 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ColorResolution: 2145.6
-    - _DitherSpread: 0.001
+    - _Blend: 0
+    - _HueSteps: 1
+    - _SatSteps: 38.09
+    - _Saturation: 16.89
+    - _Steps: 32
+    - _Trip: 0
+    - _ValueSteps: 31.8
     m_Colors: []
   m_BuildTextureStacks: []
   m_AllowLocking: 1

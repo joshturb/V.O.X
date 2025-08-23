@@ -84,7 +84,6 @@ public class GameManager : NetworkSingleton<GameManager>
 
 		startCoroutine = StartCoroutine(Transition(theBlankSceneName));
 
-		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoaded;
 		NetworkManager.Singleton.SceneManager.OnUnloadComplete += OnSceneUnloaded;
 	}
 
@@ -97,7 +96,6 @@ public class GameManager : NetworkSingleton<GameManager>
 		if (NetworkManager.Singleton == null || !NetworkManager.Singleton.IsListening)
 			return;
 
-		NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoaded;
 		NetworkManager.Singleton.SceneManager.OnUnloadComplete -= OnSceneUnloaded;
 	}
 
@@ -151,25 +149,6 @@ public class GameManager : NetworkSingleton<GameManager>
 			StopCoroutine(startCoroutine);
 		}
 		startCoroutine = StartCoroutine(Transition(sceneNameToLoad));
-	}
-
-	private void OnSceneLoaded(ulong clientId, string sceneName, LoadSceneMode loadSceneMode)
-	{
-		if (CurrentMinigame.Value == MiniGame.None)
-			return;
-
-		if (loadSceneMode != LoadSceneMode.Additive)
-			return;
-
-		List<ulong> connectedClients = NetworkManager.Singleton.ConnectedClientsIds.ToList();
-		FindCurrentMinigameRpc();
-
-		if (currentMinigameManager != null)
-		{
-			currentMinigameManager.OnMinigameLoaded_S(CurrentMinigame.Value, connectedClients);
-		}
-
-		print($"Current Minigame Manager: {currentMinigameManager?.GetType().Name ?? "None"}");
 	}
 
 	private IEnumerator Transition(string sceneName)
@@ -257,12 +236,6 @@ public class GameManager : NetworkSingleton<GameManager>
 		{
 			PlayerDatas.Remove(data);
 		}
-	}
-
-	[Rpc(SendTo.Everyone)]
-	private void FindCurrentMinigameRpc()
-	{
-		currentMinigameManager = FindFirstObjectByType<BaseMinigameManager>();
 	}
 
 	public bool TryGetModuleLocker(ulong id, out ModuleLocker moduleLocker)

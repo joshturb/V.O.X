@@ -9,7 +9,7 @@ public class Spectator : NetworkBehaviour
 {
 	public PositionConstraint positionConstraint;
 	public CinemachineCamera spectatingCamera;
-	public float verticalOffset = 1;
+	[SerializeField] private float verticalOffset = 1;
 	[SerializeField] private float rotationSpeed = 5f;
 	private Vector2 currentRotation = Vector2.zero;
 
@@ -41,7 +41,6 @@ public class Spectator : NetworkBehaviour
 	{
 		if (!IsOwner)
 			return;
-
 
 		Vector2 mouseInput = InputHandler.Instance.playerActions.Look.ReadValue<Vector2>();
 

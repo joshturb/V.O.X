@@ -4,29 +4,32 @@ using Unity.Netcode;
 using UnityEngine;
 using System;
 using System.Collections;
+using System.Linq;
 
 [Serializable]
 public struct CustomRenderSettings
 {
 	[Header("Skybox")]
 	public Material skyboxMaterial;
-	
+
 	[Header("Shadows")]
 	public Color realtimeShadowColor;
-	
+
 	[Header("Environment Lighting")]
 	public bool useSkyboxLighting;
 	public Color ambientColor;
 	public float ambientIntensityMultiplier;
-	
+
 	[Header("Environment Reflections")]
 	public float reflectionIntensityMultiplier;
-	
+
 	[Header("Fog")]
 	public bool enableFog;
 	public Color fogColor;
 	public FogMode fogMode;
 	public float fogDensity;
+	public float linearStart;
+	public float linearEnd;
 }
 
 public abstract class BaseMinigameManager : NetworkBehaviour
@@ -34,7 +37,6 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 	public static event Action<BaseMinigameManager> OnMinigameInitialized;
 	public static event Action<BaseMinigameManager> OnCountdownCompleted;
 	public static NetworkVariable<float> Timer = new();
-	public MiniGame Type;
 	public BaseMinigameUI MinigameUI;
 	public CustomRenderSettings renderSettings;
 	public List<ulong> PlayersInRound = new();
@@ -65,8 +67,18 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		RenderSettings.fogMode = renderSettings.fogMode;
 		RenderSettings.fogColor = renderSettings.fogColor;
 		RenderSettings.fogDensity = renderSettings.fogDensity;
+		RenderSettings.fogStartDistance = renderSettings.linearStart;
+		RenderSettings.fogEndDistance = renderSettings.linearEnd;
 		DynamicGI.UpdateEnvironment();
 		#endregion
+	}
+
+	void Start()
+	{
+		if (!IsServer)
+			return;
+
+		OnMinigameLoaded_S(GameManager.Instance.CurrentMinigame.Value, 	NetworkManager.Singleton.ConnectedClientsIds.ToList());
 	}
 
 	public override void OnDestroy()
@@ -74,7 +86,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		base.OnDestroy();
 		if (!IsServer)
 			return;
-			
+
 		StopCoroutine(MinigameCoroutine());
 	}
 
@@ -112,6 +124,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 	private void OnMinigameInitializedRpc(float minigameStartTime)
 	{
 		this.minigameStartTime = minigameStartTime;
+		GameManager.Instance.currentMinigameManager = this;
 		MinigameUI.Initialize(this);
 		OnMinigameInitialized?.Invoke(this);
 	}

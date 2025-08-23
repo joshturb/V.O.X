@@ -29,6 +29,8 @@ public class TheBlankManager : NetworkSingleton<TheBlankManager>
 		RenderSettings.fogMode = renderSettings.fogMode;
 		RenderSettings.fogColor = renderSettings.fogColor;
 		RenderSettings.fogDensity = renderSettings.fogDensity;
+		RenderSettings.fogStartDistance = renderSettings.linearStart;
+		RenderSettings.fogEndDistance = renderSettings.linearEnd;
 		DynamicGI.UpdateEnvironment();
 		#endregion
 	}

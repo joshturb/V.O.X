@@ -20,17 +20,9 @@ public class Spectating : NetworkSingleton<Spectating>
 	{
 		if (!IsServer)
 			return;
-		
-		PlayerManager.OnPlayerRevive_E += (id) =>
-		{
-			RemoveSpectator(id);
-		};
 
-		PlayerManager.OnPlayerDeath_E += (id) =>
-		{
-			print($"spectating {id}");
-			AddSpectator(id);
-		};
+		PlayerManager.OnPlayerRevive_E += RemoveSpectator;
+		PlayerManager.OnPlayerDeath_E += AddSpectator;
 	}
 
 	public override void OnDestroy()
@@ -42,15 +34,8 @@ public class Spectating : NetworkSingleton<Spectating>
 		spectatingIds.Clear();
 		spectatingObjects.Clear();
 
-		PlayerManager.OnPlayerRevive_E -= (id) =>
-		{
-			RemoveSpectator(id);
-		};
-
-		PlayerManager.OnPlayerDeath_E -= (id) =>
-		{
-			AddSpectator(id);
-		};
+		PlayerManager.OnPlayerRevive_E -= RemoveSpectator;
+		PlayerManager.OnPlayerDeath_E -= AddSpectator;
 	}
 
 	private void AddSpectator(ulong clientId)
@@ -60,12 +45,12 @@ public class Spectating : NetworkSingleton<Spectating>
 			print($"Spectator {clientId} is already added.");
 			return;
 		}
-
-		spectatingIds.Add(clientId);
+		
 		var spectatingObject = Instantiate(spectatingPrefab);
 		spectatingObject.SpawnAsPlayerObject(clientId);
-		spectatingObject.DestroyWithScene = false;
+
 		spectatingObjects[clientId] = spectatingObject;
+		spectatingIds.Add(clientId);
 		OnSpectatorAdded_S?.Invoke(clientId);
 		print($"Spectator {clientId} added.");
 	}

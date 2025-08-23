@@ -690,6 +690,8 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   spectatingObjects:
     _serializedList: []
+  loserSpectatingMaterial: {fileID: 2100000, guid: be45c3ea2c950754ba67c69e07094eea, type: 2}
+  winnerSpectatingMaterial: {fileID: 2100000, guid: 6b932e74192ddf045a73452e12bfaa11, type: 2}
   spectatingPrefab: {fileID: 5550042496568119396, guid: 767b100684fde9c41911324ab2550ef4, type: 3}
 --- !u!114 &763359076
 MonoBehaviour:

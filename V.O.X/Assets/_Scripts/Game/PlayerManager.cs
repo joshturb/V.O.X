@@ -11,64 +11,36 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 
 	void Start()
 	{
-		AlivePlayers.OnListChanged += (changeEvent) =>
-		{
-			if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Add)
-			{
-				OnPlayerRevive_E?.Invoke(changeEvent.Value);
-			}
-			else if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Remove)
-			{
-				OnPlayerDeath_E?.Invoke(changeEvent.Value);
-				print("OnPlayerDeath_E invoked");
-			}
-		};
-
 		if (!IsServer)
 			return;
 
-		Gate.OnPlayerEnteredGate_S += async (id, gateType) =>
-		{
-			if (gateType == Gate.GateType.Death)
-			{
-				await KillPlayer(id);
-			}
-		};
-
-		GameManager.IsGameRunning.OnValueChanged += SetupAlivePlayers;
+		Gate.OnPlayerEnteredGate_S += OnPlayerEnteredGate_SHandler;
+		GameManager.IsGameRunning.OnValueChanged += OnGameStateChanged;
 	}
 
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
-		AlivePlayers.OnListChanged -= (changeEvent) =>
-		{
-			if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Add)
-			{
-				OnPlayerRevive_E?.Invoke(changeEvent.Value);
-			}
-			else if (changeEvent.Type == NetworkListEvent<ulong>.EventType.Remove)
-			{
-				OnPlayerDeath_E?.Invoke(changeEvent.Value);
-			}
-		};
-
 		if (!IsServer)
 			return;
 
-		Gate.OnPlayerEnteredGate_S -= async (id, gateType) =>
-		{
-			if (gateType == Gate.GateType.Death)
-			{
-				await KillPlayer(id);
-			}
-
-		};
-
-		GameManager.IsGameRunning.OnValueChanged -= SetupAlivePlayers;
+		Gate.OnPlayerEnteredGate_S -= OnPlayerEnteredGate_SHandler;
+		GameManager.IsGameRunning.OnValueChanged -= OnGameStateChanged;
 	}
 
-	private void SetupAlivePlayers(bool previousValue, bool newValue)
+	private async void OnPlayerEnteredGate_SHandler(ulong id, Gate.GateType gateType)
+	{
+		if (gateType == Gate.GateType.Death)
+		{
+			await KillPlayer(id);
+		}
+		else if (gateType == Gate.GateType.Finish)
+		{
+			await DestroyPlayerObject(id);
+		}
+	}
+
+	private void OnGameStateChanged(bool previousValue, bool newValue)
 	{
 		if (newValue)
 		{
@@ -86,18 +58,16 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 			{
 				if (AlivePlayers.Contains(item.clientId))
 					continue;
-					
+
 				RepawnPlayer(item.clientId);
 			}
 		}
 	}
 
-	private async Awaitable KillPlayer(ulong id)
+	private async Awaitable DestroyPlayerObject(ulong id)
 	{
 		if (!IsServer)
 			return;
-
-		// add some verification here
 
 		if (!AlivePlayers.Contains(id))
 			return;
@@ -110,24 +80,54 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 
 		networkObject.Despawn(true);
 		await Awaitable.NextFrameAsync();
-
-		AlivePlayers.Remove(id);
-		print("Player " + id + " has died.");
 	}
 
-	public void RepawnPlayer(ulong id)
+	private async Awaitable SpawnPlayerObject(ulong id)
 	{
 		if (!IsServer)
 			return;
 
-		// add some verification here
+		if (AlivePlayers.Contains(id))
+			return;
+
 		BaseMinigameManager currentMinigameManager = GameManager.Instance.currentMinigameManager;
 		int index = UnityEngine.Random.Range(0, currentMinigameManager.playerPositions.Length);
 
 		currentMinigameManager.playerPositions[index].GetPositionAndRotation(out Vector3 spawnPosition, out Quaternion spawnRotation);
 		PlayerSpawner.Instance.SpawnPlayer(id, spawnPosition, spawnRotation);
+		await Awaitable.NextFrameAsync();
+	}
+
+	private async Awaitable KillPlayer(ulong id)
+	{
+		if (!IsServer)
+			return;
+
+		await DestroyPlayerObject(id);
+		AlivePlayers.Remove(id);
+		OnDeathRpc(id);
+	}
+
+	public async void RepawnPlayer(ulong id)
+	{
+		if (!IsServer)
+			return;
+
+		await SpawnPlayerObject(id);
 		AlivePlayers.Add(id);
-		print("Player " + id + " has been revived.");
+		OnReviveRpc(id);
+	}
+
+	[Rpc(SendTo.Everyone)]
+	private void OnDeathRpc(ulong id)
+	{
+		OnPlayerDeath_E?.Invoke(id);
+	}
+
+	[Rpc(SendTo.Everyone)]
+	private void OnReviveRpc(ulong id)
+	{
+		OnPlayerRevive_E?.Invoke(id);
 	}
 
 	public static int GetAlivePlayerCount()
