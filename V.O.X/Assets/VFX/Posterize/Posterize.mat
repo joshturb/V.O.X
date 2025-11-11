@@ -41,7 +41,7 @@ Material:
     - _HueSteps: 1
     - _SatSteps: 38.09
     - _Saturation: 16.89
-    - _Steps: 32
+    - _Steps: 64
     - _Trip: 0
     - _ValueSteps: 31.8
     m_Colors: []

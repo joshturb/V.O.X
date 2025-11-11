@@ -28,7 +28,6 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 	private int _lostSamples;
 	private readonly float[] _temporary = new float[800];
 	private ulong _occupantId;
-	private Slot ownerSlot;
 
 	[Header("Voice Analysis Settings")]
 	[SerializeField] private float minPitchHz = 80f;
@@ -53,7 +52,6 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 	public override void Initialize(Slot slot)
 	{
 		base.Initialize(slot);
-		ownerSlot = slot;
 		_occupantId = slot.OwnerClientId;
 		FindFirstObjectByType<DissonanceComms>().SubscribeToRecordedAudio(this);
 	}
@@ -61,7 +59,6 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 	public override void OnDestroy()
 	{
 		base.OnDestroy();
-		ownerSlot = null;
 		FindFirstObjectByType<DissonanceComms>().UnsubscribeFromRecordedAudio(this);
 	}
 
@@ -144,7 +141,7 @@ public class MicrophoneModule : BaseSlotModule, IMicrophoneSubscriber
 		_resetPending = true;
 	}
 
-	public virtual void Update()
+	public override void UpdateModule()
 	{
 		if (!OwnsComponent(_occupantId))
 			return;

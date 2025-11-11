@@ -16,6 +16,7 @@ public abstract class BaseSlotModule : NetworkBehaviour
 		UnsubscribeFromEvents();
 	}
 
+	public abstract void UpdateModule();
 	public virtual void SubscribeToEvents() { }
 	public virtual void UnsubscribeFromEvents() { }
 

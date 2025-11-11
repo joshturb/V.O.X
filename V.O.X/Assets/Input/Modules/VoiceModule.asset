@@ -62,10 +62,7 @@ MonoBehaviour:
     m_RotationOrder: 4
   pitchSmoothingFactor: 0.1
   pitchDecisionThresholdHz: 200
-  movementDbThreshold: -15
-  movement: {x: 0, y: -2.4288785, z: 0}
-  debugPitchHz: 84.85565
-  debugAveragePitchHz: 58.632156
-  debugConfidence: 0.8605236
+  movementDbThreshold: -25
+  movement: {x: 0, y: 0, z: 0}
   debugMovingForward: 0
   debugMovingUp: 0

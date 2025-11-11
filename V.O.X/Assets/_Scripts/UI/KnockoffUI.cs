@@ -1,0 +1,4 @@
+public class KnockoffUI : BaseMinigameUI
+{
+	
+}

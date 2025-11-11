@@ -6,8 +6,9 @@ public class Slot : NetworkBehaviour
 {
 	public List<BaseSlotModule> slotModules = new();
 
-	void Start()
+	public override void OnNetworkSpawn()
 	{
+		base.OnNetworkSpawn();
 		if (!IsOwner)
 			return;
 
@@ -27,6 +28,17 @@ public class Slot : NetworkBehaviour
 			return;
 		
 		PlayerManager.OnPlayerDeath_E -= HandlePlayerDeathRpc;
+	}
+
+	void Update()
+	{
+		if (!IsOwner)
+			return;
+
+		foreach (var module in slotModules)
+		{
+			module.UpdateModule();
+		}
 	}
 
 	[Rpc(SendTo.Server)]

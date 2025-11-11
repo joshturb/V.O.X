@@ -7,6 +7,7 @@ public class TheBlankManager : NetworkSingleton<TheBlankManager>
 	public CustomRenderSettings renderSettings;
 	public PlayerModule[] requiredModules;
 	public Transform[] playerPositions;
+	public Transform[] podiumPositions;
 
 	protected override void Awake()
 	{
@@ -25,20 +26,34 @@ public class TheBlankManager : NetworkSingleton<TheBlankManager>
 		}
 		RenderSettings.ambientIntensity = renderSettings.ambientIntensityMultiplier;
 		RenderSettings.reflectionIntensity = renderSettings.reflectionIntensityMultiplier;
-		RenderSettings.fog = renderSettings.enableFog;
-		RenderSettings.fogMode = renderSettings.fogMode;
-		RenderSettings.fogColor = renderSettings.fogColor;
-		RenderSettings.fogDensity = renderSettings.fogDensity;
-		RenderSettings.fogStartDistance = renderSettings.linearStart;
-		RenderSettings.fogEndDistance = renderSettings.linearEnd;
+		RenderSettings.fog = renderSettings.fogSettings.enableFog;
+		RenderSettings.fogMode = renderSettings.fogSettings.fogMode;
+		RenderSettings.fogColor = renderSettings.fogSettings.fogColor;
+		RenderSettings.fogDensity = renderSettings.fogSettings.fogDensity;
+		RenderSettings.fogStartDistance = renderSettings.fogSettings.linearStart;
+		RenderSettings.fogEndDistance = renderSettings.fogSettings.linearEnd;
 		DynamicGI.UpdateEnvironment();
 		#endregion
 	}
 
 	private void Start()
 	{
-		int index = Random.Range(0, playerPositions.Length);
-		GameManager.Instance.TeleportPlayerClientRpc(playerPositions[index].position, playerPositions[index].rotation, new RpcParams
+		int index;
+		Transform[] array;
+		
+		int placement = GameManager.Instance.GetPlacement(NetworkManager.LocalClientId);
+		if (placement == -1 || placement >= 3)
+		{
+			index = Random.Range(0, playerPositions.Length);
+			array = playerPositions;
+		}
+		else
+		{
+			index = placement;
+			array = podiumPositions;
+		}
+
+		GameManager.Instance.TeleportPlayerClientRpc(array[index].position, array[index].rotation, new RpcParams
 		{
 			Send = new RpcSendParams
 			{

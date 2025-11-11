@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine.Rendering;
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
-using System;
-using System.Collections;
 using System.Linq;
+using System;
 
 [Serializable]
 public struct CustomRenderSettings
@@ -22,7 +22,12 @@ public struct CustomRenderSettings
 
 	[Header("Environment Reflections")]
 	public float reflectionIntensityMultiplier;
+	public FogRenderSettings fogSettings;
+}
 
+[Serializable]
+public struct FogRenderSettings
+{
 	[Header("Fog")]
 	public bool enableFog;
 	public Color fogColor;
@@ -34,9 +39,12 @@ public struct CustomRenderSettings
 
 public abstract class BaseMinigameManager : NetworkBehaviour
 {
+	private static WaitForSeconds _waitForSeconds5 = new(5f);
+
 	public static event Action<BaseMinigameManager> OnMinigameInitialized;
 	public static event Action<BaseMinigameManager> OnCountdownCompleted;
 	public static NetworkVariable<float> Timer = new();
+	public bool isDeveloper;
 	public BaseMinigameUI MinigameUI;
 	public CustomRenderSettings renderSettings;
 	public List<ulong> PlayersInRound = new();
@@ -63,22 +71,22 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		}
 		RenderSettings.ambientIntensity = renderSettings.ambientIntensityMultiplier;
 		RenderSettings.reflectionIntensity = renderSettings.reflectionIntensityMultiplier;
-		RenderSettings.fog = renderSettings.enableFog;
-		RenderSettings.fogMode = renderSettings.fogMode;
-		RenderSettings.fogColor = renderSettings.fogColor;
-		RenderSettings.fogDensity = renderSettings.fogDensity;
-		RenderSettings.fogStartDistance = renderSettings.linearStart;
-		RenderSettings.fogEndDistance = renderSettings.linearEnd;
+		RenderSettings.fog = renderSettings.fogSettings.enableFog;
+		RenderSettings.fogMode = renderSettings.fogSettings.fogMode;
+		RenderSettings.fogColor = renderSettings.fogSettings.fogColor;
+		RenderSettings.fogDensity = renderSettings.fogSettings.fogDensity;
+		RenderSettings.fogStartDistance = renderSettings.fogSettings.linearStart;
+		RenderSettings.fogEndDistance = renderSettings.fogSettings.linearEnd;
 		DynamicGI.UpdateEnvironment();
 		#endregion
 	}
 
-	void Start()
+	protected virtual void Start()
 	{
 		if (!IsServer)
 			return;
 
-		OnMinigameLoaded_S(GameManager.Instance.CurrentMinigame.Value, 	NetworkManager.Singleton.ConnectedClientsIds.ToList());
+		OnMinigameLoaded_S(GameManager.Instance.CurrentMinigame.Value, NetworkManager.Singleton.ConnectedClientsIds.ToList());
 	}
 
 	public override void OnDestroy()
@@ -168,7 +176,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 		}
 
 		float startTime = NetworkManager.Singleton.ServerTime.TimeAsFloat;
-		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime < minigameDuration && PlayerManager.GetAlivePlayerCount() > 1)
+		while (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime < minigameDuration && (isDeveloper || PlayerManager.GetAlivePlayerCount() > 1))
 		{
 			Timer.Value = minigameDuration - (NetworkManager.Singleton.ServerTime.TimeAsFloat - startTime);
 			yield return null;
@@ -176,7 +184,7 @@ public abstract class BaseMinigameManager : NetworkBehaviour
 
 		if (PlayerManager.GetAlivePlayerCount() == 1)
 		{
-			yield return new WaitForSeconds(5f);
+			yield return _waitForSeconds5;
 		}
 
 		EndMinigame();

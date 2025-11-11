@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 5658834152442583192}
   - component: {fileID: 2408266727461129240}
   - component: {fileID: 5397679876460675436}
+  - component: {fileID: 5810862282340744727}
   m_Layer: 0
   m_Name: Slot
   m_TagString: Untagged
@@ -97,3 +98,19 @@ MonoBehaviour:
   averagePitch: 0
   loudnessDb: -80
   confidence: 0
+--- !u!114 &5810862282340744727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8017953823313947610}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d158ce8c19e377a4aabec1e5acc317c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
+  initialDistance: 5
+  maxDistance: 20
+  decibelRange: {x: 0, y: 100}

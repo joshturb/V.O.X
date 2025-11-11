@@ -31,7 +31,6 @@ public class Spectating : NetworkSingleton<Spectating>
 		if (!IsServer)
 			return;
 
-		spectatingIds.Clear();
 		spectatingObjects.Clear();
 
 		PlayerManager.OnPlayerRevive_E -= RemoveSpectator;

@@ -1,4 +1,5 @@
 using UnityEngine.SceneManagement;
+using System.Collections;
 using UnityEngine.UI;
 using Unity.Netcode;
 using UnityEngine;
@@ -8,6 +9,8 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 {
 	[SerializeField] private Image glitchImage;
 	[SerializeField] private TMP_Text timerText;
+	[SerializeField] private TMP_Text playerJoinText;
+	private Coroutine playerJoinCoroutine;
 
 	protected override void Awake()
 	{
@@ -15,6 +18,11 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 		NetworkManager.Singleton.SceneManager.OnUnload += OnSceneUnload;
 		NetworkManager.Singleton.SceneManager.OnLoadComplete += OnSceneLoadComplete;
 		BaseMinigameManager.Timer.OnValueChanged += UpdateTimerUI;
+	}
+
+	void Start()
+	{
+		GameManager.PlayerDatas.OnListChanged += UpdatePlayerListUI;
 	}
 
 	public override void OnDestroy()
@@ -25,7 +33,44 @@ public class GlobalUIManager : NetworkSingleton<GlobalUIManager>
 
 		NetworkManager.Singleton.SceneManager.OnUnload -= OnSceneUnload;
 		NetworkManager.Singleton.SceneManager.OnLoadComplete -= OnSceneLoadComplete;
+		GameManager.PlayerDatas.OnListChanged -= UpdatePlayerListUI;
 		BaseMinigameManager.Timer.OnValueChanged -= UpdateTimerUI;
+	}
+
+	private void UpdatePlayerListUI(NetworkListEvent<PlayerData> changeEvent)
+	{
+		if (GameManager.Instance == null)
+			return;
+
+		// dont display join message to player joining
+		if (NetworkManager.LocalClientId == changeEvent.Value.clientId)
+			return;
+
+		string text = string.Empty;
+		if (changeEvent.Type == NetworkListEvent<PlayerData>.EventType.Add)
+		{
+			text = $"{changeEvent.Value.playerName} has joined.";
+		}
+		else if (changeEvent.Type == NetworkListEvent<PlayerData>.EventType.Remove)
+		{
+			text = $"{changeEvent.Value.playerName} has left.";
+		}
+
+		playerJoinText.transform.parent.gameObject.SetActive(true);
+		playerJoinText.text = text;
+
+		if (playerJoinCoroutine != null)
+			StopCoroutine(playerJoinCoroutine);
+
+		playerJoinCoroutine = StartCoroutine(ClearPlayerJoinTextCoroutine());
+	}
+
+	private IEnumerator ClearPlayerJoinTextCoroutine()
+	{
+		yield return new WaitForSeconds(3f);
+		playerJoinText.transform.parent.gameObject.SetActive(false);
+		playerJoinText.text = string.Empty;
+		playerJoinCoroutine = null;
 	}
 
 	private void UpdateTimerUI(float previousValue, float newValue)

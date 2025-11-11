@@ -1,57 +1,78 @@
 using Unity.Netcode;
 using UnityEngine;
 
-public class ModuleLocker : MonoBehaviour
+[RequireComponent(typeof(FPCModule))]
+public class ModuleLocker : NetworkBehaviour
 {
-	public static ModuleLocker Instance;
-	private FPCModule fpcModule;
+    private FPCModule fpcModule;
 
-	void Awake()
-	{
-		Instance = this;
-		fpcModule = GetComponent<FPCModule>();
-	}
+    void Awake()
+    {
+        fpcModule = GetComponent<FPCModule>();
+    }
 
-	private void OnDestroy()
-	{
-		UnlockAllModulesRpc();
-	}
+    public override void OnDestroy()
+    {
+        base.OnDestroy();
+        UnlockAllModulesRpc();
+    }
 
-	[Rpc(SendTo.Owner)]
-	public void LockModuleRpc<T>() where T : PlayerModule
-	{
-		if (fpcModule.TryGetModule<T>(out var module))
-		{
-			module.IsLocked = true;
-		}
-	}
+    public void LockModule<T>() where T : PlayerModule
+    {
+        if (fpcModule.TryGetModule<T>(out var module))
+        {
+            module.IsLocked = true;
+        }
+    }
 
-	[Rpc(SendTo.Owner)]
-	public void UnlockModuleRpc<T>() where T : PlayerModule
-	{
-		if (fpcModule.TryGetModule<T>(out var module))
-		{
-			module.IsLocked = false;
-		}
-	}
+    public void UnlockModule<T>() where T : PlayerModule
+    {
+        if (fpcModule.TryGetModule<T>(out var module))
+        {
+            module.IsLocked = false;
+        }
+    }
 
-	[Rpc(SendTo.Owner)]
-	public void LockAllModulesRpc(bool includeCamera = false)
-	{
-		foreach (var module in fpcModule.modules)
-		{
-			if (includeCamera || module is not CameraModule)
-				module.IsLocked = true;
-		}
-	}
+    [Rpc(SendTo.Owner)]
+    public void LockMovementModuleRpc()
+    {
+        LockModule<MovementModule>();
+    }
 
+    [Rpc(SendTo.Owner)]
+    public void LockCameraModuleRpc()
+    {
+        LockModule<CameraModule>();
+    }
 
-	[Rpc(SendTo.Owner)]
-	public void UnlockAllModulesRpc()
-	{
-		foreach (var module in fpcModule.modules)
-		{
-			module.IsLocked = false;
-		}
-	}
+    [Rpc(SendTo.Owner)]
+    public void UnlockMovementModuleRpc()
+    {
+        UnlockModule<MovementModule>();
+    }
+
+    [Rpc(SendTo.Owner)]
+    public void UnlockCameraModuleRpc()
+    {
+        UnlockModule<CameraModule>();
+    }
+
+    [Rpc(SendTo.Owner)]
+    public void LockAllModulesRpc(bool includeCamera = false)
+    {
+        foreach (var module in fpcModule.modules)
+        {
+            if (includeCamera || module is not CameraModule)
+                module.IsLocked = true;
+        }
+    }
+
+    [Rpc(SendTo.Owner)]
+    public void UnlockAllModulesRpc()
+    {
+        foreach (var module in fpcModule.modules)
+        {
+            module.IsLocked = false;
+        }
+    }
 }

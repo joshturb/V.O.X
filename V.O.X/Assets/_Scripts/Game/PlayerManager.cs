@@ -34,10 +34,6 @@ public class PlayerManager : NetworkSingleton<PlayerManager>
 		{
 			await KillPlayer(id);
 		}
-		else if (gateType == Gate.GateType.Finish)
-		{
-			await DestroyPlayerObject(id);
-		}
 	}
 
 	private void OnGameStateChanged(bool previousValue, bool newValue)

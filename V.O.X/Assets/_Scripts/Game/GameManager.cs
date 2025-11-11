@@ -1,21 +1,21 @@
 using AYellowpaper.SerializedCollections;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
+using Unity.Netcode.Components;
 using System.Collections;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using System.Linq;
 using System;
-using Unity.Burst.Intrinsics;
-using Unity.Netcode.Components;
 
 public enum MiniGame
 {
 	None,
-	Telephone,
-	RaceToHeaven,
-	PushToShove,
+	Echo,
+	Ascend,
+	Knockoff,
+	Screamoff,
 }
 
 [Serializable]
@@ -57,9 +57,9 @@ public class GameManager : NetworkSingleton<GameManager>
 	public static bool CanPlayersJoin = true;
 
 	[Header("Scene Configuration")]
-	public SerializedDictionary<MiniGame, string> minigameScenes;
 	public NetworkVariable<MiniGame> PreviousMinigame = new(MiniGame.None);
 	public NetworkVariable<MiniGame> CurrentMinigame = new(MiniGame.None);
+	public SerializedDictionary<MiniGame, string> minigameScenes;
 	public string theBlankSceneName = "_TheBlank";
 	[Range(0.01f, 10)] public float sceneTransitionDelay = 1f;
 
@@ -197,6 +197,21 @@ public class GameManager : NetworkSingleton<GameManager>
 	public int GetScore(ulong clientId)
 	{
 		return PlayerScores.TryGetValue(clientId, out var score) ? score : 0;
+	}
+
+	public int GetPlacement(ulong clientId)
+	{
+		if (PlayerScores.ContainsKey(clientId))
+		{
+			var scores = GetScoresDescending();
+			return scores.IndexOf(clientId);
+		}
+		return -1;
+	}
+
+	private List<ulong> GetScoresDescending()
+	{
+		return PlayerScores.OrderByDescending(kv => kv.Value).Select(kv => kv.Key).ToList();
 	}
 
 	public static bool GetPlayerData(ulong clientId, out PlayerData playerData)

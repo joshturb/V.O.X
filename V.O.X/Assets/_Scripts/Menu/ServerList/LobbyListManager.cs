@@ -10,7 +10,6 @@ public class LobbyListManager : MonoBehaviour
     public GameObject lobbyListContent;
     public TMP_Dropdown dropdown;
     public List<GameObject> listOfLobbies = new();
-#if !SERVER
 
     private void Start()
     {
@@ -82,12 +81,13 @@ public class LobbyListManager : MonoBehaviour
             lobbyDataEntry.lobbyData.currentPlayers = lobbies[i].MemberCount;
             lobbyDataEntry.lobbyData.maxPlayers = lobbies[i].MaxMembers;
             lobbyDataEntry.SetLobbyData();
-            createdItem.transform.SetParent(lobbyListContent.transform);
+            createdItem.transform.SetParent(lobbyListContent.transform, false);
+			Vector3 localPos = createdItem.transform.localPosition;
+			localPos.z = 0f;
+			createdItem.transform.localPosition = localPos;
             createdItem.transform.localScale = Vector3.one;
 
             listOfLobbies.Add(createdItem);
         }
     }
-#endif
-
 }

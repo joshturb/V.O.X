@@ -18,14 +18,17 @@ EditorBuildSettings:
     path: Assets/_TheBlank.unity
     guid: 245c3f665f8cbbf40bd6e4e7a9f19b53
   - enabled: 1
-    path: Assets/Telephone.unity
+    path: Assets/Echo.unity
     guid: 16095cb005b571141a113dff1fa47df3
   - enabled: 1
-    path: Assets/RaceToHeaven.unity
+    path: Assets/Ascend.unity
     guid: ee97b38883778844eac6827c532ea5e7
   - enabled: 1
-    path: Assets/PushToShove.unity
+    path: Assets/Knockoff.unity
     guid: dd39269f660c3984d879a148f865a219
+  - enabled: 1
+    path: Assets/Scream-Off.unity
+    guid: cf275852dd9eba34ba6378e591b01bf1
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
